@@ -65,6 +65,7 @@ a4a publish /path/to/article.md --json
 1. **短链接**（`url` 字段）— 告诉用户把它发给任何 AI（Claude、豆包、ChatGPT、Kimi…）即可读全文
 2. **有效期**（`expiresAt`，7 天）— 到期链接失效
 3. **后台管理** — 打开 `<endpoint>/admin`，粘贴 `a4a token` 显示的 token 登录，可以查看、复制、续期、删除自己的所有链接
+4. **首次使用时**（刚跑过 `a4a init`）：明确展示 token 并提醒用户妥善保存 —— token 是唯一凭证，没有账号密码找回机制，token 丢失 = 链接无法管理
 
 ## 排错
 
