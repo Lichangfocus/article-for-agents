@@ -1,0 +1,19 @@
+{
+  "name": "a4a-cli",
+  "version": "0.1.0",
+  "description": "Publish articles as AI-readable URLs (article-for-agents CLI). 把文章发布成 AI 一次 fetch 可读的 URL。",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "a4a": "bin/a4a.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0"
+  }
+}

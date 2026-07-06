@@ -1,0 +1,15 @@
+{
+  "name": "article-for-agents",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Publish your articles as AI-readable URLs. 让公众号/小红书等平台的文章对 AI 一次 fetch 可读。",
+  "license": "MIT",
+  "workspaces": [
+    "server",
+    "cli"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "deploy": "npm run deploy --workspace server"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "a4a-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "article-for-agents server: Cloudflare Worker that serves articles as AI-readable markdown URLs",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "marked": "^15.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

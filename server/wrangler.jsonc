@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "article-for-agents",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "kv_namespaces": [
+    {
+      "binding": "A4A_KV",
+      // 部署前运行: npx wrangler kv namespace create A4A_KV
+      // 然后把返回的 id 填到这里
+      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+    }
+  ],
+  "vars": {
+    // 允许任何人调用 POST /v1/keys 自助注册 token；
+    // 公共实例如果担心滥用可设为 "false"，改为手动发 token
+    "OPEN_REGISTRATION": "true",
+    // 单篇文章正文大小上限（字节）
+    "MAX_CONTENT_BYTES": "1048576",
+    // 链接有效期（天），到期 KV 自动删除；可在 /admin 或 `a4a renew` 续期
+    "LINK_TTL_DAYS": "7"
+  }
+}
