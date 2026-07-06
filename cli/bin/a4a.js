@@ -8,7 +8,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import qrcode from 'qrcode-terminal'
 
-const DEFAULT_ENDPOINT = 'https://a4a.dev'
+const DEFAULT_ENDPOINT = 'https://article-for-agents.lichangin.workers.dev'
 const CONFIG_DIR = join(homedir(), '.config', 'a4a')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
@@ -137,7 +137,20 @@ function printPublished(result, values) {
   }
 }
 
+/** Node 的 fetch 默认不走 HTTP(S)_PROXY；国内访问 workers.dev 常需代理，这里补上 */
+async function setupProxy() {
+  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy
+  if (!proxy) return
+  try {
+    const { EnvHttpProxyAgent, setGlobalDispatcher } = await import('undici')
+    setGlobalDispatcher(new EnvHttpProxyAgent())
+  } catch {
+    // undici 不可用时按无代理继续，连不上会在 api() 里报错
+  }
+}
+
 async function main() {
+  await setupProxy()
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {

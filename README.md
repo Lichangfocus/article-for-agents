@@ -12,6 +12,8 @@ a4a 让作者为自己的文章发布一份 **AI 可读副本**：
 
 同一个 URL 对人和 AI 都友好：浏览器打开是排版好的网页，agent 请求返回带 YAML front matter 的纯 Markdown。
 
+> **官方实例**: https://article-for-agents.lichangin.workers.dev （CLI 默认指向它，开箱即用；也可[自部署](#自部署)）
+
 ## 推荐用法：装 skill，让 AI 替你发布
 
 如果你在用 Claude Code（或其他支持 skill 的 agent），装上发布 skill 后，
@@ -40,7 +42,7 @@ a4a publish 我的文章.md        # 发布 → 输出 URL 和二维码
 
 ## 后台管理
 
-打开 `https://<host>/admin`，粘贴 token（`a4a token` 查看）登录，
+打开 [/admin](https://article-for-agents.lichangin.workers.dev/admin)，粘贴 token（`a4a token` 查看）登录，
 即可查看、复制、**续期**、删除自己发布的所有链接。token 只存在浏览器本地。
 
 ### 更多命令

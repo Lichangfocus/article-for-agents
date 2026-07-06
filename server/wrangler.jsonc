@@ -6,9 +6,8 @@
   "kv_namespaces": [
     {
       "binding": "A4A_KV",
-      // 部署前运行: npx wrangler kv namespace create A4A_KV
-      // 然后把返回的 id 填到这里
-      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+      // 自部署时运行: npx wrangler kv namespace create A4A_KV，把返回的 id 填到这里
+      "id": "58fc9aace2104f6e9d60cfea6f83ef48"
     }
   ],
   "vars": {
