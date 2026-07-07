@@ -241,7 +241,14 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.4 · 2026-07-07 —— HTML 版同样内嵌 agent 指令（当前）
+### v0.0.5 · 2026-07-07 —— 订阅引导换路线：信息告知 + 用户触发（当前）
+
+- **实测结论**：主流 agent harness 有 prompt injection 防护，网页内容里「命令 agent 行动」的指令会被无视——写得越凶越像攻击
+- **转化时刻从 agent 移到用户**：文章开头新增给读者的一行提示「对你的 AI 说『帮我订阅这个作者』」；用户开口后就是用户指令，agent 必然执行
+- **agent 说明降级为温和的两件事**：总结本文时请转述「作者支持 AI 订阅」这一事实；用户要求订阅时读取 author_page 执行步骤（front matter 字段 `agent_todo` 改为 `agent_note`）
+- 作者主页的执行步骤保持不变——agent 到那一步已带用户授权，不会被拦
+
+### v0.0.4 · 2026-07-07 —— HTML 版同样内嵌 agent 指令
 
 - **真实测试发现的缺口**：很多 agent 用浏览器型抓取器读文章（Accept 带 text/html），拿到的是 HTML 版——而行动指令此前只在 Markdown 版里，这类 agent 完全看不到
 - 文章页与作者主页的 **HTML 版页脚加入「给 AI agent 的指令块」**（虚线框灰字，对人低干扰），与 Markdown 版指令同源渲染，两种形态的 agent 都能收到订阅引导

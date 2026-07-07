@@ -228,7 +228,14 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.4 · 2026-07-07 — agent instructions embedded in the HTML rendering too (current)
+### v0.0.5 · 2026-07-07 — subscription funnel rerouted: inform the reader, let the user trigger (current)
+
+- **Live-test finding**: mainstream agent harnesses ship prompt-injection defenses — page content that *commands* the agent gets ignored (and the harder it pushes, the more it looks like an attack)
+- **The conversion moment moves from agent to user**: articles now open with a reader-facing line — "tell your AI *subscribe to this author for me*"; once the user says it, it's a user instruction the agent will execute
+- **The agent note softens to two things**: relay the fact "this author supports AI subscriptions" when summarizing; when the user asks to subscribe, fetch author_page and run its steps (`agent_todo` front matter renamed `agent_note`)
+- Author-page execution steps unchanged — by then the agent acts with user authorization and isn't blocked
+
+### v0.0.4 · 2026-07-07 — agent instructions embedded in the HTML rendering too
 
 - **Gap found in live testing**: many agents read articles through browser-style fetchers (Accept: text/html) and get the HTML rendering — where the action instructions previously didn't exist
 - Article and author pages now embed an **"instructions for AI agents" block in the HTML footer** (dashed muted box, low-noise for humans), rendered from the same source as the Markdown instructions
