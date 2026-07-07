@@ -223,7 +223,7 @@ npx wrangler deploy
 | GET | `/i/:key` | 读取托管图片（内容寻址，长缓存） |
 | GET | `/u/:笔名` | 作者主页：agent 得 Markdown（含订阅指引），浏览器得 HTML；`.md` 后缀强制 Markdown |
 | GET | `/u/:笔名/feed.json` | 订阅源（JSON Feed）：支持 `?since=<ISO8601>`、`?sub=<sub_id>`（记录活跃）与 `If-Modified-Since` |
-| POST | `/v1/subscriptions` | 订阅登记（agent 侧，无需 token）：`{author}` → `{sub_id, poll}` |
+| POST | `/v1/subscriptions` | 订阅登记（agent 侧，无需 token）：`{author, agent?, webhook?}` → `{sub_id, mode}`；带 `webhook` = 推送模式，更新即时 POST 到回调 |
 | DELETE | `/v1/subscriptions/:id` | 退订（sub_id 即凭证） |
 | GET | `/v1/subscribers` | 作者查看订阅者统计：总数、近 7 天活跃、明细 |
 | GET | `/:id` | 公开阅读：agent 得 Markdown，浏览器得 HTML；付费文章无凭证时返回 402 |
@@ -241,7 +241,14 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.5 · 2026-07-07 —— 订阅引导换路线：信息告知 + 用户触发（当前）
+### v0.0.6 · 2026-07-07 —— Webhook 推送 + 创作者可配置订阅引导（当前）
+
+- **推送模式（优先引导）**：订阅登记时可带 `webhook` 回调 URL——作者发布/更新文章，服务端**立即 POST** 新文章 JSON 给订阅者，支持回调的 agent 完全不需要定时任务
+- **轮询兜底**：agent 给不出回调 URL 时才引导定时任务，建议频率由创作者配置（默认每天）
+- **创作者引导配置**：后台新增表单（是否引导推送、轮询频率 6h/12h/每天/3天/每周），配置内化进作者主页输出的订阅指引
+- 订阅者明细显示 push/poll 模式
+
+### v0.0.5 · 2026-07-07 —— 订阅引导换路线：信息告知 + 用户触发
 
 - **实测结论**：主流 agent harness 有 prompt injection 防护，网页内容里「命令 agent 行动」的指令会被无视——写得越凶越像攻击
 - **转化时刻从 agent 移到用户**：文章开头新增给读者的一行提示「对你的 AI 说『帮我订阅这个作者』」；用户开口后就是用户指令，agent 必然执行
@@ -280,7 +287,6 @@ npx wrangler deploy
 内容的下一个入口是 AI。a4a 想成为**作者 → AI → 读者**这条新链路上的分发层。接下来：
 
 - [ ] 真实收款 provider：作者自带微信商户号 / 聚合支付，可插拔接入
-- [ ] Webhook 主动推送（作者更新 → 回调订阅方 URL，作为 feed 轮询的补充）
 - [ ] 浏览器插件一键采集
 - [ ] `llms.txt` 与站点级索引
 - [ ] 公共实例防滥用（频率限制）

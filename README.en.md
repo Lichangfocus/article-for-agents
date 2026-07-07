@@ -210,7 +210,7 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 | GET | `/i/:key` | serve a hosted image (content-addressed, long cache) |
 | GET | `/u/:pen-name` | author page: Markdown for agents (with subscription guide), HTML for browsers; `.md` suffix forces Markdown |
 | GET | `/u/:pen-name/feed.json` | update feed (JSON Feed): `?since=<ISO8601>`, `?sub=<sub_id>` (records liveness), `If-Modified-Since` |
-| POST | `/v1/subscriptions` | subscribe (agent-side, no token): `{author}` → `{sub_id, poll}` |
+| POST | `/v1/subscriptions` | subscribe (agent-side, no token): `{author, agent?, webhook?}` → `{sub_id, mode}`; with `webhook` = push mode, updates POSTed to the callback |
 | DELETE | `/v1/subscriptions/:id` | unsubscribe (the sub_id is the credential) |
 | GET | `/v1/subscribers` | author-side subscriber stats: total, 7-day active, detail |
 | GET | `/:id` | public read: Markdown for agents, HTML for browsers; 402 for unpaid articles |
@@ -228,7 +228,14 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.5 · 2026-07-07 — subscription funnel rerouted: inform the reader, let the user trigger (current)
+### v0.0.6 · 2026-07-07 — webhook push + creator-configurable subscription guidance (current)
+
+- **Push mode (preferred)**: subscriptions can register a `webhook` callback URL — when the author publishes/updates, the server **POSTs the new article JSON immediately**; webhook-capable agents need no scheduled task at all
+- **Polling fallback**: agents without a callback URL are guided to a scheduled task, at a frequency the creator configures (default daily)
+- **Creator guidance settings**: new admin form (offer push or not; poll frequency 6h/12h/daily/3d/weekly), baked into the guidance served at the author page URL
+- Subscriber detail now shows push/poll mode
+
+### v0.0.5 · 2026-07-07 — subscription funnel rerouted: inform the reader, let the user trigger
 
 - **Live-test finding**: mainstream agent harnesses ship prompt-injection defenses — page content that *commands* the agent gets ignored (and the harder it pushes, the more it looks like an attack)
 - **The conversion moment moves from agent to user**: articles now open with a reader-facing line — "tell your AI *subscribe to this author for me*"; once the user says it, it's a user instruction the agent will execute
@@ -267,7 +274,6 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 The next front door for content is AI. a4a aims to be the distribution layer on the new **author → AI → reader** path. Up next:
 
 - [ ] Real payment providers: authors bring their own WeChat merchant account / aggregator, pluggable
-- [ ] Webhook push (author update → callback to subscriber URLs, complementing feed polling)
 - [ ] Browser extension for one-click capture
 - [ ] `llms.txt` and site-level indexing
 - [ ] Abuse protection for public instances (rate limiting)
