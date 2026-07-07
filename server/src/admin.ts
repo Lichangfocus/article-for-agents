@@ -85,9 +85,26 @@ tr:hover td { background: var(--bg); }
 .row-actions { white-space: nowrap; }
 .row-actions button { margin-left: .25rem; padding: .22rem .6rem; font-size: .8rem; }
 
-.kv { display: flex; flex-wrap: wrap; gap: .3rem 2rem; font-size: .9rem; }
-.kv .item b { font-weight: 600; }
-.kv .lab { color: var(--muted); font-size: .8rem; display: block; }
+.acctline { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.6rem; color: var(--muted); font-size: .86rem; padding: .2rem .3rem 1rem; }
+.acctline b { color: var(--ink); font-weight: 600; }
+button.mini { padding: .05rem .45rem; font-size: .74rem; border-radius: 6px; }
+
+details.adv { margin-top: .4rem; color: var(--muted); font-size: .88rem; }
+details.adv summary { cursor: pointer; padding: .5rem .3rem; }
+details.adv .inner { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1.2rem; margin-top: .4rem; }
+
+details.dd { display: inline-block; position: relative; }
+details.dd summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 9px; padding: .22rem .6rem; font-size: .8rem; background: #fff; }
+details.dd summary::-webkit-details-marker { display: none; }
+details.dd summary:hover { border-color: var(--accent); color: var(--accent-dk); }
+details.dd .ddmenu { position: absolute; right: 0; top: 1.9rem; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 18px rgba(60,50,30,.12); z-index: 10; display: flex; flex-direction: column; min-width: 7rem; overflow: hidden; }
+details.dd .ddmenu button { border: none; border-radius: 0; text-align: left; padding: .5rem .9rem; font-size: .84rem; background: #fff; }
+details.dd .ddmenu button:hover { background: var(--bg); color: var(--ink); }
+details.dd .ddmenu button.danger { color: var(--danger); }
+
+tr.demo td { color: var(--muted); }
+tr.demo a { color: var(--muted); pointer-events: none; }
+.demo-note { text-align: center; color: var(--muted); font-size: .86rem; padding: .9rem 0 .2rem; }
 
 .inline-cfg { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; font-size: .9rem; }
 #flash { position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%); background: var(--ink); color: #fff; padding: .55rem 1.1rem; border-radius: 10px; font-size: .88rem; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; }
@@ -171,41 +188,40 @@ footer.pagefoot { text-align: center; color: var(--muted); font-size: .8rem; mar
 
 <!-- 管理面板 -->
 <div class="wrap" id="panel" style="display:none">
-  <div class="card">
-    <h2>账号</h2>
-    <div class="kv">
-      <div class="item"><span class="lab">用户名 / 账号</span><b id="acctName">—</b></div>
-      <div class="item"><span class="lab">文章署名（可改）</span><b id="authorName">—</b> <button onclick="editName()" style="padding:.1rem .5rem;font-size:.78rem">修改</button></div>
-      <div class="item" id="homeWrap" style="display:none"><span class="lab">作者主页（发给 AI 可被订阅）</span><a id="homeUrl" target="_blank"></a></div>
-      <div class="item" id="subsWrap" style="display:none"><span class="lab">🤖 AI 订阅者</span><b id="subsCount">0</b></div>
-    </div>
+  <div class="acctline">
+    <span>👤 <b id="acctName">—</b></span>
+    <span>署名 <b id="authorName">—</b> <button class="mini" onclick="editName()">改</button></span>
+    <span id="homeWrap" style="display:none">主页 <a id="homeUrl" target="_blank"></a></span>
+    <span id="subsWrap" style="display:none">🤖 AI 订阅者 <b id="subsCount">0</b></span>
   </div>
 
   <div class="card">
-    <h2>订阅引导设置 <span class="sub">作用于主页里给 AI 的订阅指引</span></h2>
-    <div class="inline-cfg">
-      <label><input type="checkbox" id="cfgWebhook" style="width:auto;margin:0 .3rem 0 0"> 优先引导推送（webhook，更新即达）</label>
-      <span>轮询频率建议
-        <select id="cfgPoll">
-          <option value="6">每 6 小时</option>
-          <option value="12">每 12 小时</option>
-          <option value="24">每天</option>
-          <option value="72">每 3 天</option>
-          <option value="168">每周</option>
-        </select>
-      </span>
-      <button onclick="saveGuideCfg()">保存</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>我的链接 <span class="sub">默认有效期 7 天，「续期」重置为 7 天</span></h2>
-    <table id="tbl" style="display:none">
-      <thead><tr><th>标题</th><th>链接</th><th>价格</th><th>发布</th><th>有效期至</th><th></th></tr></thead>
+    <h2>我的链接 <span class="sub">默认有效期 7 天，「续期」重置为 7 天 · 把文章丢给你的 AI 即可新增</span></h2>
+    <table id="tbl">
+      <thead><tr><th>标题</th><th>链接</th><th>价格</th><th>发布</th><th>有效期至</th><th style="text-align:right">操作</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
-    <div id="empty" class="empty" style="display:none">还没有发布过文章。<br>把文章原文或公众号/小红书链接丢给你的 AI，说「把这篇转成在线链接」。</div>
+    <div id="demoNote" class="demo-note" style="display:none">↑ 以上为示例数据。把文章原文或公众号/小红书链接丢给你的 AI，说「把这篇转成在线链接」，第一条真实链接就会出现在这里。</div>
   </div>
+
+  <details class="adv">
+    <summary>⚙️ 高级设置 · 订阅引导（作用于主页里给 AI 的订阅指引）</summary>
+    <div class="inner">
+      <div class="inline-cfg">
+        <label><input type="checkbox" id="cfgWebhook" style="width:auto;margin:0 .3rem 0 0"> 优先引导推送（webhook，更新即达）</label>
+        <span>轮询频率建议
+          <select id="cfgPoll">
+            <option value="6">每 6 小时</option>
+            <option value="12">每 12 小时</option>
+            <option value="24">每天</option>
+            <option value="72">每 3 天</option>
+            <option value="168">每周</option>
+          </select>
+        </span>
+        <button onclick="saveGuideCfg()">保存</button>
+      </div>
+    </div>
+  </details>
 
   <footer class="pagefoot">a4a · 让你的读者成为 agent 时代的第一波订阅者</footer>
 </div>
@@ -343,29 +359,54 @@ async function refresh() {
       $('subsCount').textContent = s.total + '（近 7 天活跃 ' + s.active_7d + '）'
     }
   }).catch(() => {})
+  renderRows(data.articles)
+}
+
+function articleRow(a, isDemo) {
+  const soon = Date.now() + 2 * 86400e3
+  const tr = document.createElement('tr')
+  if (isDemo) tr.className = 'demo'
+  const expCls = !isDemo && Date.parse(a.expiresAt) < soon ? 'expiring' : ''
+  const actions = isDemo
+    ? '<button disabled>查看</button> <button disabled>复制</button> <button disabled>设置</button>'
+    : '<button onclick="window.open(\\'/' + a.id + '\\', \\'_blank\\')">查看</button> ' +
+      '<button onclick="copyUrl(\\'' + a.id + '\\')">复制</button> ' +
+      '<details class="dd"><summary>设置 ▾</summary><div class="ddmenu">' +
+        '<button onclick="setPrice(\\'' + a.id + '\\',' + (a.price || 0) + ')">定价</button>' +
+        '<button onclick="renew(\\'' + a.id + '\\')">续期 7 天</button>' +
+        '<button class="danger" onclick="del(\\'' + a.id + '\\')">删除</button>' +
+      '</div></details>'
+  tr.innerHTML =
+    '<td>' + (isDemo ? '<span class="pill">示例</span> ' : '') + esc(a.title) + '</td>' +
+    '<td><a href="/' + a.id + '" target="_blank">/' + a.id + '</a></td>' +
+    '<td>' + (a.price ? '<span class="pill paid">¥' + a.price.toFixed(2) + '</span>' : '<span class="pill">免费</span>') + '</td>' +
+    '<td class="hint">' + a.createdAt.slice(0, 10) + '</td>' +
+    '<td class="' + expCls + '">' + (a.expiresAt || '—').slice(0, 10) + '</td>' +
+    '<td class="row-actions" style="text-align:right">' + actions + '</td>'
+  return tr
+}
+
+function renderRows(articles) {
   const rows = $('rows')
   rows.innerHTML = ''
-  $('tbl').style.display = data.articles.length ? 'table' : 'none'
-  $('empty').style.display = data.articles.length ? 'none' : 'block'
-  const soon = Date.now() + 2 * 86400e3
-  for (const a of data.articles) {
-    const tr = document.createElement('tr')
-    const expCls = Date.parse(a.expiresAt) < soon ? 'expiring' : ''
-    tr.innerHTML =
-      '<td>' + esc(a.title) + '</td>' +
-      '<td><a href="/' + a.id + '" target="_blank">/' + a.id + '</a></td>' +
-      '<td>' + (a.price ? '<span class="pill paid">¥' + a.price.toFixed(2) + '</span>' : '<span class="pill">免费</span>') + '</td>' +
-      '<td class="hint">' + a.createdAt.slice(0, 10) + '</td>' +
-      '<td class="' + expCls + '">' + (a.expiresAt || '—').slice(0, 10) + '</td>' +
-      '<td class="row-actions">' +
-        '<button onclick="copyUrl(\\'' + a.id + '\\')">复制</button>' +
-        '<button onclick="setPrice(\\'' + a.id + '\\',' + (a.price || 0) + ')">定价</button>' +
-        '<button onclick="renew(\\'' + a.id + '\\')">续期</button>' +
-        '<button class="ghost" onclick="del(\\'' + a.id + '\\')">删除</button>' +
-      '</td>'
-    rows.appendChild(tr)
+  const empty = !articles.length
+  $('demoNote').style.display = empty ? 'block' : 'none'
+  if (empty) {
+    const day = 86400e3
+    const demo = [
+      { id: 'AbC12xYz', title: '为什么你的下一个读者是一个 AI', price: 0, createdAt: new Date(Date.now() - day).toISOString(), expiresAt: new Date(Date.now() + 6 * day).toISOString() },
+      { id: 'Qw34ErTy', title: '给 AI 读的文章，应该怎么写？三条实践笔记', price: 3, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * day).toISOString() },
+    ]
+    for (const a of demo) rows.appendChild(articleRow(a, true))
+    return
   }
+  for (const a of articles) rows.appendChild(articleRow(a, false))
 }
+
+// 点击别处时收起「设置」下拉
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('details.dd[open]').forEach((d) => { if (!d.contains(e.target)) d.removeAttribute('open') })
+})
 
 async function editName() {
   const cur = $('authorName').textContent
