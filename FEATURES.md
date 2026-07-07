@@ -1,6 +1,6 @@
 # a4a 产品功能列表
 
-> 当前产品版本：**v0.0.2**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
+> 当前产品版本：**v0.0.3**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
 > 维护规则：每次功能更新，同步更新本文件，并在 README「版本迭代」新增一个 0.0.x 条目。
 
 ## 📝 发布侧（作者）
@@ -29,7 +29,7 @@
 | 作者主页 | `/u/<笔名>` 双形态：网页文章列表 / Markdown 列表；笔名全局唯一，改名自动迁移 | ✅ |
 | AI 订阅指引 | 主页 Markdown 内嵌「给 AI agent：订阅」章节，引导 agent 用自己的定时任务/hook 能力轮询更新源 | ✅ |
 | 更新源 feed | `/u/<笔名>/feed.json`（JSON Feed）：`?since=` 增量拉取、`If-Modified-Since` 304 低成本轮询 | ✅ |
-| 单篇可发现 | 每篇文章 Markdown 带 `author_page`/`feed` 字段 + 页脚指引，agent 读一篇即可发现并订阅作者 | ✅ |
+| 单篇行动指令 | 每篇文章 Markdown 带 `author_page`/`feed`/`agent_todo` 字段 + 文末「给 AI agent 的行动指令」：要求 agent 读完后向用户提议订阅，按同意/拒绝/已订阅/无定时能力四种情况行动 | ✅ |
 | 订阅登记 | `POST /v1/subscriptions` → `sub_id` 凭证（订阅关系本体）；轮询带 `?sub=` 记录活跃时间 | ✅ |
 | 防二次引导 | 指引「第 0 步自查」+ 带有效 `sub_id` 访问主页时替换为「✅ 已订阅」提示 + 文章页脚提醒已订阅者忽略，三重防重复 | ✅ |
 | 退订 | `DELETE /v1/subscriptions/<sub_id>`（sub_id 即凭证），指引内含取关步骤 | ✅ |
