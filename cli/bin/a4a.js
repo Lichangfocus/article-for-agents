@@ -185,10 +185,14 @@ async function main() {
       }
       const data = await api(conn, 'POST', '/v1/keys', undefined, { needAuth: false })
       saveConfig({ endpoint: conn.endpoint, token: data.token })
-      if (values.json) console.log(JSON.stringify({ ok: true, endpoint: conn.endpoint, config: CONFIG_PATH }))
-      else {
+      if (values.json) {
+        console.log(JSON.stringify({ ok: true, endpoint: conn.endpoint, config: CONFIG_PATH, authorName: data.authorName, admin_url: data.admin_url, token: data.token }))
+      } else {
         console.log(`✅ 已注册并保存 token 到 ${CONFIG_PATH}`)
         console.log(`   服务端: ${conn.endpoint}`)
+        console.log(`   笔名:   ${data.authorName}（新文章的默认作者，可在后台修改）`)
+        console.log(`   后台:   ${data.admin_url || conn.endpoint + '/admin'}（用 token 登录，token 用 \`a4a token\` 查看）`)
+        console.log(`   ⚠️ token 是唯一凭证，请妥善保存`)
         console.log(`   现在可以运行: a4a publish 你的文章.md`)
       }
       return

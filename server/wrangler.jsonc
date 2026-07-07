@@ -3,6 +3,8 @@
   "name": "article-for-agents",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
+  // 把仓库里的 SKILL.md 打包进 worker，经 GET /skill.md 分发
+  "rules": [{ "type": "Text", "globs": ["**/*.md"] }],
   "kv_namespaces": [
     {
       "binding": "A4A_KV",

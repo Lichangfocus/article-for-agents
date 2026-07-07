@@ -25,7 +25,8 @@ a4a --help || npm install -g a4a-cli
 a4a token --json || a4a init
 ```
 
-`a4a init` 会自动注册并把 token 存到 `~/.config/a4a/config.json`。
+`a4a init` 会自动注册（无需邮箱密码）：自动分配一个笔名（新文章的默认作者，
+可在后台修改）并把 token 存到 `~/.config/a4a/config.json`。
 如果用户指定了自部署实例，加 `--endpoint <url>`。
 
 ### 3. 整理文章内容

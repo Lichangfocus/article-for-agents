@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import type { Context, Next } from 'hono'
 import { cors } from 'hono/cors'
 import { marked } from 'marked'
+// @ts-expect-error 由 wrangler 的 Text 规则打包为字符串
+import SKILL_MD from '../../skills/a4a-publish/SKILL.md'
 
 type Env = {
   A4A_KV: KVNamespace
@@ -139,8 +141,35 @@ app.post('/v1/keys', async (c) => {
   }
   const token = `a4a_${randomB62(32)}`
   const hash = await sha256hex(token)
-  await c.env.A4A_KV.put(tokenKey(hash), JSON.stringify({ createdAt: new Date().toISOString() }))
-  return json(c, 201, { token })
+  // 自动分配一个可改的笔名，作为文章的默认作者
+  const authorName = `作者_${randomB62(4)}`
+  await c.env.A4A_KV.put(tokenKey(hash), JSON.stringify({ createdAt: new Date().toISOString(), authorName }))
+  const origin = new URL(c.req.url).origin
+  return json(c, 201, { token, authorName, admin_url: `${origin}/admin` })
+})
+
+type Profile = { createdAt: string; authorName?: string }
+
+app.get('/v1/me', requireAuth, async (c) => {
+  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(c.get('owner')), 'json')
+  return json(c, 200, { authorName: profile?.authorName ?? null, createdAt: profile?.createdAt })
+})
+
+app.put('/v1/me', requireAuth, async (c) => {
+  let body: { authorName?: unknown }
+  try {
+    body = await c.req.json()
+  } catch {
+    return json(c, 400, { error: 'bad_json', message: 'Request body must be JSON' })
+  }
+  if (typeof body.authorName !== 'string' || !body.authorName.trim() || body.authorName.length > 50) {
+    return json(c, 400, { error: 'invalid_input', message: 'authorName must be a non-empty string (max 50 chars)' })
+  }
+  const owner = c.get('owner')
+  const profile = (await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')) ?? { createdAt: new Date().toISOString() }
+  profile.authorName = body.authorName.trim()
+  await c.env.A4A_KV.put(tokenKey(owner), JSON.stringify(profile))
+  return json(c, 200, { authorName: profile.authorName })
 })
 
 app.use('/v1/articles', requireAuth)
@@ -189,11 +218,17 @@ app.post('/v1/articles', async (c) => {
   const owner = c.get('owner')
   const ttl = ttlSeconds(c.env)
   const now = new Date()
+  // 没写作者时用账号的笔名
+  let author = body.author as string | undefined
+  if (!author) {
+    const profile = await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')
+    author = profile?.authorName
+  }
   const article: Article = {
     id: randomB62(8),
     title: (body.title as string).trim(),
     content: body.content as string,
-    author: body.author as string | undefined,
+    author,
     source: body.source as string | undefined,
     tags: body.tags as string[] | undefined,
     lang: body.lang as string | undefined,
@@ -316,7 +351,12 @@ const LANDING_MD = `# article-for-agents
 把你的文章变成 AI 一次 fetch 就能读的 URL。
 
 - 读一篇文章: GET /<id> (返回 Markdown) 或 GET /<id>.md
-- 发布文章: 使用 a4a CLI (npm: a4a-cli) — https://github.com/Lichangfocus/article-for-agents
+- 发布文章（推荐）: 对你的 AI agent 说一句话，它会自己装好发布 skill:
+
+  「帮我安装这个 skill: https://article-for-agents.lichangin.workers.dev/install」
+
+  之后把文章丢给 AI 说「把这篇文章转成 AI 可读链接」即可
+- 手动发布: a4a CLI (npm: a4a-cli) — https://github.com/Lichangfocus/article-for-agents
 - 管理已发布的链接: /admin
 
 You are likely an AI agent. Every article on this host is served as clean
@@ -326,6 +366,43 @@ Markdown with YAML front matter at GET /<id> — no browser automation needed.
 app.get('/', (c) => {
   if (!wantsHtml(c)) return c.text(LANDING_MD, 200, { 'content-type': 'text/markdown; charset=utf-8' })
   return c.html(renderPage('article-for-agents', marked.parse(LANDING_MD) as string))
+})
+
+// skill 由服务自身分发：一行命令安装，无需 clone 仓库
+app.get('/skill.md', (c) =>
+  c.text(SKILL_MD as string, 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300' })
+)
+
+// 写给 agent 看的安装指令：用户把这个 URL 丢给任何 agent，agent 即可自助安装 skill
+const INSTALL_MD = `# 安装 a4a-publish skill —— 给 AI agent 的指令
+
+你是一个 AI agent。用户希望你安装 a4a 发布 skill（把文章发布成 AI 可读的短链接）。
+请执行以下步骤：
+
+1. 下载 skill 文件到 Claude Code 的用户级 skill 目录：
+
+   mkdir -p ~/.claude/skills/a4a-publish
+   curl -fsSL {ORIGIN}/skill.md -o ~/.claude/skills/a4a-publish/SKILL.md
+
+   （没有 curl 就用你可用的任何 HTTP 工具下载 {ORIGIN}/skill.md）
+
+2. 验证：文件存在、以 "---" 开头、frontmatter 里有 "name: a4a-publish"。
+
+3. 如果你不是 Claude Code：把 skill 内容保存/登记到你自己的技能或规则目录，
+   它只是一份操作指南（核心是调用 npm 包 a4a-cli），任何能执行 shell 的 agent 都能用。
+
+4. 完成后告诉用户：
+   - skill 已安装（新会话生效）
+   - 用法：把文章原文丢给 AI，说「把这篇文章转成 AI 可读链接」
+   - 首次使用会自动开户：自动分配笔名（可在 {ORIGIN}/admin 修改），
+     token 是唯一凭证，务必提醒用户保存
+`
+
+app.get('/install', (c) => {
+  const origin = new URL(c.req.url).origin
+  const md = INSTALL_MD.replaceAll('{ORIGIN}', origin)
+  if (!wantsHtml(c)) return c.text(md, 200, { 'content-type': 'text/markdown; charset=utf-8' })
+  return c.html(renderPage('安装 a4a-publish skill', marked.parse(md) as string))
 })
 
 // ---------- 后台管理页 ----------
@@ -360,6 +437,7 @@ a { color: #0969da; text-decoration: none; }
   <p><button class="primary" onclick="login()">登录</button></p>
 </div>
 <div id="panel" style="display:none">
+  <p class="muted">笔名（新文章的默认作者）: <strong id="authorName"></strong> <button onclick="editName()">修改</button></p>
   <p class="muted">链接默认有效期 7 天，过期自动失效；点「续期」重置为 7 天。 <a href="#" onclick="logout();return false">退出登录</a></p>
   <div id="msg" class="msg"></div>
   <table id="tbl" style="display:none">
@@ -372,11 +450,23 @@ a { color: #0969da; text-decoration: none; }
 const $ = (id) => document.getElementById(id)
 const tokenOf = () => localStorage.getItem('a4a_token') || ''
 
-async function api(method, path) {
-  const res = await fetch(path, { method, headers: { authorization: 'Bearer ' + tokenOf() } })
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { authorization: 'Bearer ' + tokenOf(), 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
   const data = await res.json()
   if (!res.ok) throw new Error(data.message || data.error || ('HTTP ' + res.status))
   return data
+}
+
+async function editName() {
+  const cur = $('authorName').textContent
+  const name = prompt('新笔名（作为新文章的默认作者）:', cur)
+  if (!name || name.trim() === cur) return
+  try { const r = await api('PUT', '/v1/me', { authorName: name.trim() }); $('authorName').textContent = r.authorName; flash('笔名已更新') }
+  catch (e) { flash('更新失败: ' + e.message) }
 }
 
 function login() {
@@ -407,6 +497,7 @@ async function refresh() {
   }
   $('login').style.display = 'none'
   $('panel').style.display = 'block'
+  api('GET', '/v1/me').then((me) => { $('authorName').textContent = me.authorName || '（未设置）' }).catch(() => {})
   const rows = $('rows')
   rows.innerHTML = ''
   $('tbl').style.display = data.articles.length ? 'table' : 'none'
