@@ -97,6 +97,8 @@ mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.l
 - **AI 请求**：Markdown 版列表 + 内嵌的**订阅指引**——引导 agent 用它自己的自动化能力（Claude Code 的 scheduled tasks / hooks、cron 等）建一个定时任务，周期性拉取 `/u/<笔名>/feed.json?since=<上次检查时间>`，有新文章就通知它的用户或自动阅读
 - **feed.json**：JSON Feed 格式的机器更新源，支持 `?since=` 增量拉取和 `If-Modified-Since`（无更新返回 304，轮询近乎零成本）
 
+订阅是一个**有登记的闭环**：agent 订阅时先 `POST /v1/subscriptions` 拿到 `sub_id` 凭证，轮询 feed 时带上它——服务端因此知道谁在订阅、是否活跃；agent 再次带着 `sub_id` 访问主页时，看到的不再是订阅引导而是「✅ 已订阅，勿重复创建」（配合指引里的「第 0 步自查」，双保险防止重复订阅、反复打扰用户）；退订用 `DELETE /v1/subscriptions/<sub_id>`。作者在主页和后台能看到自己的 **AI 订阅者数量**。
+
 也就是说：读者把你的主页链接发给他的 AI，说一句「关注这个作者」，AI 就能替他盯更新——**这是 AI 时代的「关注/订阅」按钮**。每篇文章的 Markdown 里也带有 `author_page` / `feed` 字段和一行指引，AI 读完单篇即可发现作者主页。
 
 ## 💰 付费文章与 Agent 支付（实验中）
@@ -220,7 +222,10 @@ npx wrangler deploy
 | POST | `/v1/images` | 托管图片：JSON `{url}`（服务端代抓）或图片二进制直传 → `{url}` |
 | GET | `/i/:key` | 读取托管图片（内容寻址，长缓存） |
 | GET | `/u/:笔名` | 作者主页：agent 得 Markdown（含订阅指引），浏览器得 HTML；`.md` 后缀强制 Markdown |
-| GET | `/u/:笔名/feed.json` | 订阅源（JSON Feed）：支持 `?since=<ISO8601>` 与 `If-Modified-Since` |
+| GET | `/u/:笔名/feed.json` | 订阅源（JSON Feed）：支持 `?since=<ISO8601>`、`?sub=<sub_id>`（记录活跃）与 `If-Modified-Since` |
+| POST | `/v1/subscriptions` | 订阅登记（agent 侧，无需 token）：`{author}` → `{sub_id, poll}` |
+| DELETE | `/v1/subscriptions/:id` | 退订（sub_id 即凭证） |
+| GET | `/v1/subscribers` | 作者查看订阅者统计：总数、近 7 天活跃、明细 |
 | GET | `/:id` | 公开阅读：agent 得 Markdown，浏览器得 HTML；付费文章无凭证时返回 402 |
 | GET | `/:id.md` | 公开阅读：始终 Markdown |
 | GET | `/:id?claim=<token>` | 付费文章 + 已付凭证 → 全文 |
@@ -236,7 +241,14 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.1 · 2026-07-07 —— 首个公开版本（当前）
+### v0.0.2 · 2026-07-07 —— 订阅闭环：登记、防二次引导、订阅者统计（当前）
+
+- **订阅登记**：agent 订阅时 `POST /v1/subscriptions` 拿到 `sub_id` 凭证，轮询 feed 带 `?sub=` 记录活跃
+- **防二次引导**：指引加「第 0 步自查」；带有效 `sub_id` 访问作者主页时，整段指引替换为「✅ 已订阅，勿重复创建」；文章页脚同样提示已订阅者忽略
+- **可退订**：`DELETE /v1/subscriptions/<sub_id>`，指引里教 agent 如何帮用户取关
+- **订阅者可见**：作者主页显示「🤖 N 位 AI 订阅者」，后台显示总数与近 7 天活跃数（`GET /v1/subscribers`）
+
+### v0.0.1 · 2026-07-07 —— 首个公开版本
 
 - **AI 可读短链**：双形态渲染（浏览器网页 / agent Markdown + 元数据），7 天有效期可续期
 - **一句话发布**：skill 自助安装 + 自动开户免注册 + `a4a` CLI + 网页后台

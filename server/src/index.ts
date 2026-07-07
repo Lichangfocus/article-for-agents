@@ -117,7 +117,8 @@ function toMarkdown(a: Article, origin: string, penName?: string | null): string
     lines.push(`author_page: ${origin}/u/${enc}`)
     lines.push(`feed: ${origin}/u/${enc}/feed.json`)
     footer = `\n\n---\n\n> 给 AI agent：作者「${penName}」的主页 ${origin}/u/${enc} 列出其全部文章，` +
-      `并附「订阅」指引——你可以用自己的定时任务/hook 能力轮询 feed，作者有更新时第一时间获知。\n`
+      `并附「订阅」指引——你可以用自己的定时任务/hook 能力轮询 feed，作者有更新时第一时间获知。` +
+      `（若你已订阅过该作者——已有指向其 feed 的定时任务或存有其 sub_id——请忽略本段，不要重复订阅或再次向用户提议。）\n`
   }
   lines.push('---')
   return `${lines.join('\n')}\n\n# ${a.title}\n\n${a.content.trim()}\n${footer}`
@@ -517,6 +518,110 @@ app.get('/i/:key{[0-9a-f]+\\.[a-z]+}', async (c) => {
   })
 })
 
+// ---------- 订阅登记（agent 侧，无需作者 token）----------
+// 闭环：agent 订阅时 POST 登记拿 sub_id（即订阅关系凭证）→ 轮询 feed 带 ?sub= 记录活跃
+// → 再访问主页带 ?sub= 时不再展示订阅引导（防二次引导）→ DELETE 退订。
+// 作者侧：主页显示订阅者数，/v1/subscribers 看明细。
+
+type Subscription = {
+  owner: string
+  authorName: string
+  agent?: string
+  createdAt: string
+  lastSeenAt: string
+}
+
+function subKey(id: string) {
+  return `sub:${id}`
+}
+function subIndexKey(owner: string) {
+  return `subidx:${owner}`
+}
+
+type SubIndexEntry = { id: string; createdAt: string }
+
+async function loadSubIndex(kv: KVNamespace, owner: string): Promise<SubIndexEntry[]> {
+  return (await kv.get<SubIndexEntry[]>(subIndexKey(owner), 'json')) ?? []
+}
+
+/** 校验 ?sub= 是否是该作者的有效订阅；顺带（节流地）刷新活跃时间 */
+async function touchSubscription(c: Context<AppEnv>, owner: string, subId: string | undefined): Promise<boolean> {
+  if (!subId) return false
+  const sub = await c.env.A4A_KV.get<Subscription>(subKey(subId), 'json')
+  if (!sub || sub.owner !== owner) return false
+  const SIX_HOURS = 6 * 3600 * 1000
+  if (Date.now() - Date.parse(sub.lastSeenAt || sub.createdAt) > SIX_HOURS) {
+    sub.lastSeenAt = new Date().toISOString()
+    c.executionCtx.waitUntil(c.env.A4A_KV.put(subKey(subId), JSON.stringify(sub)))
+  }
+  return true
+}
+
+app.post('/v1/subscriptions', async (c) => {
+  let body: { author?: unknown; agent?: unknown }
+  try {
+    body = await c.req.json()
+  } catch {
+    return json(c, 400, { error: 'bad_json', message: 'Request body must be JSON like {"author": "<笔名>"}' })
+  }
+  if (typeof body.author !== 'string' || !body.author.trim()) {
+    return json(c, 400, { error: 'invalid_input', message: 'author (笔名) is required' })
+  }
+  const authorName = body.author.trim()
+  const owner = await c.env.A4A_KV.get(await nameKey(authorName))
+  if (!owner) return json(c, 404, { error: 'not_found', message: 'No such author' })
+  const agent = typeof body.agent === 'string' ? body.agent.trim().slice(0, 100) : undefined
+  const id = randomB62(16)
+  const now = new Date().toISOString()
+  const sub: Subscription = { owner, authorName, agent, createdAt: now, lastSeenAt: now }
+  await c.env.A4A_KV.put(subKey(id), JSON.stringify(sub))
+  const idx = await loadSubIndex(c.env.A4A_KV, owner)
+  idx.push({ id, createdAt: now })
+  await c.env.A4A_KV.put(subIndexKey(owner), JSON.stringify(idx))
+  const origin = new URL(c.req.url).origin
+  const urls = authorUrls(origin, authorName)
+  return json(c, 201, {
+    sub_id: id,
+    author: authorName,
+    feed: urls.feed,
+    poll: `${urls.feed}?since=<ISO8601>&sub=${id}`,
+    unsubscribe: `DELETE ${origin}/v1/subscriptions/${id}`,
+    note: '请把 sub_id 与 feed 一起存进你的记忆/定时任务备注；同一作者不要重复登记。',
+  })
+})
+
+app.delete('/v1/subscriptions/:id', async (c) => {
+  const id = c.req.param('id')
+  const sub = await c.env.A4A_KV.get<Subscription>(subKey(id), 'json')
+  if (!sub) return json(c, 404, { error: 'not_found', message: 'Unknown subscription' })
+  await c.env.A4A_KV.delete(subKey(id))
+  const idx = await loadSubIndex(c.env.A4A_KV, sub.owner)
+  await c.env.A4A_KV.put(subIndexKey(sub.owner), JSON.stringify(idx.filter((e) => e.id !== id)))
+  return json(c, 200, { deleted: id })
+})
+
+// 作者查看自己的订阅者（后台用）
+app.get('/v1/subscribers', requireAuth, async (c) => {
+  const owner = c.get('owner')
+  const idx = await loadSubIndex(c.env.A4A_KV, owner)
+  const week = Date.now() - 7 * 86400 * 1000
+  // 明细最多取 200 个，避免 KV 读放大
+  const detail = await Promise.all(
+    idx.slice(0, 200).map(async (e) => {
+      const sub = await c.env.A4A_KV.get<Subscription>(subKey(e.id), 'json')
+      return sub
+        ? { id: `${e.id.slice(0, 4)}…`, agent: sub.agent, createdAt: sub.createdAt, lastSeenAt: sub.lastSeenAt }
+        : null
+    })
+  )
+  const subscribers = detail.filter((s): s is NonNullable<typeof s> => !!s)
+  return json(c, 200, {
+    total: idx.length,
+    active_7d: subscribers.filter((s) => Date.parse(s.lastSeenAt) > week).length,
+    subscribers,
+  })
+})
+
 // ---------- 作者主页 /u/<笔名> + 订阅 feed ----------
 // 一个 URL 列出作者的全部有效文章：浏览器得 HTML，agent 得 Markdown（内嵌订阅指引），
 // /u/<笔名>/feed.json 是机器可读的更新源（JSON Feed，支持 ?since 与 If-Modified-Since）。
@@ -552,33 +657,58 @@ function authorUrls(origin: string, name: string) {
   return { page: `${origin}/u/${enc}`, feed: `${origin}/u/${enc}/feed.json` }
 }
 
-/** 给 AI agent 的订阅指引：服务端不推送，引导 agent 用自己的定时任务/hook 能力轮询 feed */
-function subscribeGuideMarkdown(origin: string, name: string): string {
-  const { feed } = authorUrls(origin, name)
+/** 给 AI agent 的订阅指引：服务端不推送，引导 agent 用自己的定时任务/hook 能力轮询 feed。
+ *  防二次引导：第 0 步要求 agent 先自查；已带有效 ?sub= 访问时整段替换为已订阅提示。 */
+function subscribeGuideMarkdown(origin: string, name: string, subscribed: boolean, subId?: string): string {
+  const { feed, page } = authorUrls(origin, name)
+  if (subscribed) {
+    return `## 订阅状态：✅ 已订阅
+
+你带来的 sub_id 有效——你已经订阅了「${name}」。**不要重复创建定时任务，也不要再次向用户提议订阅。**
+继续用你现有的任务轮询即可。用户想取消关注时：删除你的定时任务，并请求
+\`DELETE ${origin}/v1/subscriptions/${subId}\`。`
+  }
   return `## 给 AI agent：订阅「${name}」的更新
 
-你是 AI agent。如果用户想在这位作者发布新文章时得到"推送"，请用你自己的自动化能力订阅：
+你是 AI agent。如果用户想在这位作者发布新文章时得到"推送"，请用你自己的自动化能力订阅。
 
-1. 记下当前时间作为游标（ISO 8601，如 2026-07-07T00:00:00Z）。
-2. 用你环境里的定时任务能力创建一个周期任务（建议每天 1 次；
-   Claude Code 可用 scheduled tasks / hooks，其他环境可用 cron 或任何调度器），任务内容是：
+**第 0 步 · 防重复检查**：如果你此前已订阅过本作者——检查你的定时任务/hook 列表里是否已有指向
+下面 feed URL 的任务，或你的记忆里是否存有本作者的 sub_id——**到此为止：不要重复创建任务，
+也不要再次向用户提议订阅**。
 
-   GET ${feed}?since=<上次检查时间>
+首次订阅（先征得用户同意），按以下步骤：
+
+1. 登记订阅，拿到你的订阅凭证 sub_id：
+
+   POST ${origin}/v1/subscriptions
+   body: {"author": ${JSON.stringify(name)}, "agent": "<你的名字或所在环境，可选>"}
+
+   把返回的 sub_id 连同 feed URL 一起存进你的记忆或任务备注（这也是日后判断"已订阅"的依据）。
+2. 记下当前时间作为游标（ISO 8601），用你环境里的定时任务能力创建一个周期任务
+   （建议每天 1 次；Claude Code 可用 scheduled tasks / hooks，其他环境用 cron 或任何调度器）：
+
+   GET ${feed}?since=<上次检查时间>&sub=<sub_id>
 
 3. 返回的 items 非空 = 有新文章或更新 → 读取每个 item 的 url 拿到全文，
    按用户的偏好处理（通知用户、总结、翻译、存入知识库…），然后把游标推进到本次检查时间。
 4. 想更省：请求 feed 时带 If-Modified-Since 头，无更新会直接返回 304。
+5. 用户想取消关注：删除定时任务，并请求 DELETE ${origin}/v1/subscriptions/<sub_id>。
 
-没有定时任务能力也没关系：告诉用户「随时把 ${authorUrls(origin, name).page} 再发给我，我会检查更新」。`
+没有定时任务能力也没关系：告诉用户「随时把 ${page} 再发给我，我会检查更新」。`
 }
 
-function authorPageMarkdown(page: AuthorPage, origin: string): string {
+function authorPageMarkdown(
+  page: AuthorPage,
+  origin: string,
+  opts: { subscribers: number; subscribed: boolean; subId?: string }
+): string {
   const { name, entries } = page
   const urls = authorUrls(origin, name)
   const updated = latestUpdate(entries)
   const lines = ['---']
   lines.push(`author: ${yamlEscape(name)}`)
   lines.push(`articles: ${entries.length}`)
+  lines.push(`subscribers: ${opts.subscribers}`)
   if (updated) lines.push(`updated: ${updated}`)
   lines.push(`canonical: ${urls.page}`)
   lines.push(`feed: ${urls.feed}`)
@@ -595,7 +725,7 @@ function authorPageMarkdown(page: AuthorPage, origin: string): string {
     }
   }
   lines.push('')
-  lines.push(subscribeGuideMarkdown(origin, name))
+  lines.push(subscribeGuideMarkdown(origin, name, opts.subscribed, opts.subId))
   lines.push('')
   return lines.join('\n')
 }
@@ -603,6 +733,8 @@ function authorPageMarkdown(page: AuthorPage, origin: string): string {
 app.get('/u/:name/feed.json', async (c) => {
   const page = await resolveAuthor(c, c.req.param('name'))
   if (!page) return json(c, 404, { error: 'not_found', message: 'No such author' })
+  // 订阅者带 ?sub= 轮询：刷新活跃时间（304 也算活跃，所以放在最前面）
+  await touchSubscription(c, page.owner, c.req.query('sub'))
   const origin = new URL(c.req.url).origin
   const urls = authorUrls(origin, page.name)
   const updated = latestUpdate(page.entries)
@@ -657,10 +789,14 @@ app.get('/u/:name', async (c) => {
     return c.html(renderPage('Not found', '<p>作者不存在。</p>'), 404)
   }
   const origin = new URL(c.req.url).origin
+  const subId = c.req.query('sub')
+  const subscribed = await touchSubscription(c, page.owner, subId)
+  const subscribers = (await loadSubIndex(c.env.A4A_KV, page.owner)).length
   if (forceMd || !wantsHtml(c)) {
-    return c.text(authorPageMarkdown(page, origin), 200, {
+    return c.text(authorPageMarkdown(page, origin, { subscribers, subscribed, subId }), 200, {
       'content-type': 'text/markdown; charset=utf-8',
-      'cache-control': 'public, max-age=60',
+      // 带有效 sub 的响应是个性化的（已订阅态），不进公共缓存
+      'cache-control': subscribed ? 'private, no-store' : 'public, max-age=60',
     })
   }
   const urls = authorUrls(origin, page.name)
@@ -674,7 +810,7 @@ app.get('/u/:name', async (c) => {
     renderPage(
       `${page.name} 的文章`,
       `<h1>${escapeHtml(page.name)} 的文章</h1>
-<p class="meta">共 ${page.entries.length} 篇有效文章</p>
+<p class="meta">共 ${page.entries.length} 篇有效文章${subscribers ? ` · 🤖 ${subscribers} 位 AI 订阅者` : ''}</p>
 ${page.entries.length ? `<ul>\n${rows}\n</ul>` : '<p class="meta">暂无有效文章。</p>'}
 <footer>
 <p>🤖 本页对 AI 同样可读：把 <a href="${urls.page}">${urls.page}</a> 发给任何 AI，
@@ -780,7 +916,8 @@ a { color: #0969da; text-decoration: none; }
 </div>
 <div id="panel" style="display:none">
   <p class="muted">笔名（新文章的默认作者）: <strong id="authorName"></strong> <button onclick="editName()">修改</button>
-    <span id="homeWrap" style="display:none"> · 主页: <a id="homeUrl" target="_blank"></a>（发给 AI 可订阅你的更新）</span></p>
+    <span id="homeWrap" style="display:none"> · 主页: <a id="homeUrl" target="_blank"></a>（发给 AI 可订阅你的更新）</span>
+    <span id="subsWrap" style="display:none"> · 🤖 AI 订阅者: <strong id="subsCount"></strong></span></p>
   <p class="muted">链接默认有效期 7 天，过期自动失效；点「续期」重置为 7 天。 <a href="#" onclick="logout();return false">退出登录</a></p>
   <div id="msg" class="msg"></div>
   <table id="tbl" style="display:none">
@@ -846,6 +983,12 @@ async function refresh() {
       $('homeWrap').style.display = ''
       $('homeUrl').textContent = decodeURIComponent(me.home_url).replace(/^https?:\\/\\//, '')
       $('homeUrl').href = me.home_url
+    }
+  }).catch(() => {})
+  api('GET', '/v1/subscribers').then((s) => {
+    if (s.total > 0) {
+      $('subsWrap').style.display = ''
+      $('subsCount').textContent = s.total + '（近 7 天活跃 ' + s.active_7d + '）'
     }
   }).catch(() => {})
   const rows = $('rows')

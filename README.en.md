@@ -91,6 +91,8 @@ Every author gets `https://<host>/u/<pen-name>` (see yours with `a4a home`):
 - **AI request**: a Markdown listing plus an embedded **subscription guide** — it teaches the agent to use its own automation (Claude Code scheduled tasks / hooks, cron, …) to periodically pull `/u/<pen-name>/feed.json?since=<last-check>` and act on new articles
 - **feed.json**: a JSON Feed, with `?since=` incremental fetching and `If-Modified-Since` (304 on no change — polling is nearly free)
 
+Subscribing is a **registered loop**: the agent first `POST /v1/subscriptions` to get a `sub_id` credential and polls the feed with it — so the server knows who subscribes and who's active. When the agent revisits the author page carrying its `sub_id`, it sees "✅ already subscribed — don't re-create" instead of the pitch (paired with the guide's "step 0 self-check", a double guard against duplicate subscriptions and re-prompting the user). Unsubscribe with `DELETE /v1/subscriptions/<sub_id>`. Authors see their **AI subscriber count** on their page and in the admin panel.
+
 A reader sends your page to their AI and says "follow this author" — the AI keeps watch. Every article's Markdown also carries `author_page` / `feed` fields, so reading one article is enough for an AI to discover the author.
 
 ## 💰 Paid articles & agent payments (experimental)
@@ -207,7 +209,10 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 | POST | `/v1/images` | host an image: JSON `{url}` (server-side fetch) or raw bytes → `{url}` |
 | GET | `/i/:key` | serve a hosted image (content-addressed, long cache) |
 | GET | `/u/:pen-name` | author page: Markdown for agents (with subscription guide), HTML for browsers; `.md` suffix forces Markdown |
-| GET | `/u/:pen-name/feed.json` | update feed (JSON Feed): `?since=<ISO8601>` and `If-Modified-Since` |
+| GET | `/u/:pen-name/feed.json` | update feed (JSON Feed): `?since=<ISO8601>`, `?sub=<sub_id>` (records liveness), `If-Modified-Since` |
+| POST | `/v1/subscriptions` | subscribe (agent-side, no token): `{author}` → `{sub_id, poll}` |
+| DELETE | `/v1/subscriptions/:id` | unsubscribe (the sub_id is the credential) |
+| GET | `/v1/subscribers` | author-side subscriber stats: total, 7-day active, detail |
 | GET | `/:id` | public read: Markdown for agents, HTML for browsers; 402 for unpaid articles |
 | GET | `/:id.md` | public read: always Markdown |
 | GET | `/:id?claim=<token>` | paid article + claim → full text |
@@ -223,7 +228,14 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.1 · 2026-07-07 — first public version (current)
+### v0.0.2 · 2026-07-07 — subscription loop: registration, dedup guards, subscriber stats (current)
+
+- **Subscription registration**: agents `POST /v1/subscriptions` to get a `sub_id` credential; polling the feed with `?sub=` records liveness
+- **No double-prompting**: the guide gains a "step 0 self-check"; visiting the author page with a valid `sub_id` replaces the guide with "✅ already subscribed, don't re-create"; article footers tell subscribed agents to ignore the pitch
+- **Unsubscribe**: `DELETE /v1/subscriptions/<sub_id>`, with unfollow steps in the guide
+- **Visible subscribers**: author pages show "🤖 N AI subscribers"; the admin panel shows totals and 7-day actives (`GET /v1/subscribers`)
+
+### v0.0.1 · 2026-07-07 — first public version
 
 - **AI-readable short links**: dual rendering (web page for browsers / Markdown + metadata for agents), 7-day renewable TTL
 - **One-sentence publishing**: self-installing skill + registration-free sign-up + `a4a` CLI + web admin
