@@ -7,7 +7,7 @@ export const ADMIN_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>a4a 后台 — 内容分发管理</title>
+<title>回响 · 内容分发后台</title>
 <style>
 :root {
   --bg: #FAF9F5;
@@ -146,8 +146,8 @@ details.alt input { margin-top: .6rem; }
 <!-- 登录 / 注册 -->
 <div class="narrow" id="login">
   <div class="auth-logo">
-    <span class="dot"></span><h1>a4a 后台</h1>
-    <p>把文章变成人和 AI 都能读的链接，让读者的 AI 订阅你</p>
+    <span class="dot"></span><h1>回响</h1>
+    <p>每一次更新，都有回响 —— 把文章变成人和 AI 都能读的链接</p>
   </div>
   <div class="card">
     <div class="tabs">
@@ -212,7 +212,7 @@ details.alt input { margin-top: .6rem; }
 <!-- ============ 应用壳 ============ -->
 <div class="app" id="app">
   <aside class="side">
-    <div class="brand"><span class="dot"></span>a4a <small>内容分发</small></div>
+    <div class="brand"><span class="dot"></span>回响 <small>内容分发</small></div>
     <nav class="nav">
       <a href="#links" data-view="links" class="active"><span class="ic">🔗</span>内容链接</a>
       <a href="#subs" data-view="subs"><span class="ic">📮</span>订阅者</a>
@@ -363,7 +363,7 @@ function register() {
       localStorage.setItem('a4a_token', data.token)
       $('login').style.display = 'none'
       $('obName').textContent = data.username
-      $('bindText').textContent = '帮我绑定 a4a 账号，token 是 ' + data.token + ' ，服务端是 ' + location.origin + ' 。绑定完成后告诉我怎么发布文章。'
+      $('bindText').textContent = '帮我绑定「回响」账号（CLI 是 huixiang-cli，命令 a4a），token 是 ' + data.token + ' ，服务端是 ' + location.origin + ' 。绑定完成后告诉我怎么发布文章。'
       $('obHome').textContent = decodeURIComponent(data.home_url)
       $('obHome').href = data.home_url
       $('onboard').style.display = 'block'

@@ -1,8 +1,8 @@
 {
-  "name": "a4a-server",
+  "name": "huixiang-server",
   "private": true,
   "version": "0.4.0",
-  "description": "article-for-agents server: Cloudflare Worker that serves articles as AI-readable markdown URLs",
+  "description": "huixiang (回响) server: Cloudflare Worker that serves articles as AI-readable markdown URLs",
   "license": "MIT",
   "type": "module",
   "scripts": {

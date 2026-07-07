@@ -1,8 +1,8 @@
 {
-  "name": "article-for-agents",
+  "name": "huixiang",
   "private": true,
   "version": "0.4.0",
-  "description": "Publish your articles as AI-readable URLs. 让公众号/小红书等平台的文章对 AI 一次 fetch 可读。",
+  "description": "回响 huixiang: publish articles as AI-readable URLs, let readers’ AI subscribe to you. 每一次更新，都有回响。",
   "license": "MIT",
   "workspaces": [
     "server",

@@ -1,16 +1,18 @@
 <div align="center">
 
-# article-for-agents · a4a
+# 回响 · huixiang
 
-**AI 时代的内容分发：让你的读者成为 agent 时代的第一波订阅者**
+**每一次更新，都有回响。**
+
+AI 时代的内容分发：让你的读者成为 agent 时代的第一波订阅者
 
 内容转 AI 易读格式 · 免费短链一次 `fetch` 即读 · agent 读完引导订阅，你一更新就推送给它
 
-[![npm](https://img.shields.io/npm/v/a4a-cli?label=a4a-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/a4a-cli)
+[![npm](https://img.shields.io/npm/v/huixiang-cli?label=huixiang-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/huixiang-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20KV%20%2B%20R2-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-d97757)](#30-秒上手)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Lichangfocus/article-for-agents/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Lichangfocus/huixiang/pulls)
 
 **中文** | [English](README.en.md)
 
@@ -20,13 +22,13 @@
 
 ---
 
-## 💡 为什么需要 a4a
+## 💡 为什么需要「回响」
 
 **观点一：你的文章需要能被 agent 轻松读到。** 越来越多的阅读发生在 AI 里——读者把文章丢给 Claude、豆包、ChatGPT、Kimi 去总结、翻译、存进知识库。但公众号、小红书的页面是给「人」看的：反爬、登录墙、JS 渲染，agent 想读你的文章只能靠浏览器自动化，又慢又脆，甚至根本读不到。**对 agent 不可读，就是在下一代阅读入口里缺席。**
 
 **观点二：agent 时代的流量，现在就该开始积累。** 读者的 AI 可以替他持续关注你——前提是有一个 agent 能订阅的更新源。越早提供，你的读者就越早成为你在 **agent 时代的第一波订阅者**：你一更新，他们的 AI 就会拉取阅读、报告给主人。
 
-## ✨ 所以 a4a 做了三件事
+## ✨ 所以「回响」做了三件事
 
 **1 · 📦 把各种内容转成 AI 易读的形态**
 粘贴公众号 / 小红书链接（或直接给原文），自动转成干净 Markdown + 元数据；图片一并搬离防盗链图床，托管到与文章同源的图床。
@@ -60,7 +62,7 @@
 agent 会自己读取安装指令并完成安装。也可以自己用一行命令装：
 
 ```bash
-mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/a4a-publish/SKILL.md
+mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
 ```
 
 **第 2 步 · 把文章（或链接）丢给你的 AI**
@@ -73,7 +75,7 @@ mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.l
 
 > 把这篇转成 AI 可读链接：https://mp.weixin.qq.com/s/xxxx
 
-正文自动抓取转 Markdown，图片自动搬到 a4a 图床。
+正文自动抓取转 Markdown，图片自动搬到回响图床。
 
 **第 3 步 · 首次使用：注册账号（约 30 秒，仅一次）**
 
@@ -156,10 +158,10 @@ feed: https://<host>/u/<笔名>/feed.json
 
 ## ⌨️ 手动用法（CLI）
 
-skill 背后是 `a4a` CLI，也可以直接使用：
+skill 背后是回响 CLI（npm 包 `huixiang-cli`，提供 `a4a` 与 `huixiang` 两个命令），也可以直接使用：
 
 ```bash
-npm install -g a4a-cli
+npm install -g huixiang-cli
 
 a4a login <token>               # 绑定账号（token 在 /admin 注册或登录后显示）
 a4a login --email 邮箱 --password 密码   # 或直接邮箱登录换 token
@@ -185,7 +187,7 @@ a4a publish 文章.md --json       # JSON 输出（供脚本/AI 调用）
 服务端是单个 Cloudflare Worker + KV（+ 可选 R2），免费额度足够个人使用：
 
 ```bash
-git clone https://github.com/Lichangfocus/article-for-agents && cd article-for-agents
+git clone https://github.com/Lichangfocus/huixiang && cd huixiang
 npm install
 
 cd server
@@ -206,7 +208,7 @@ npx wrangler deploy
 | `LINK_TTL_DAYS` | `7` | 链接有效期（天） |
 | `MAX_IMAGE_BYTES` | `5242880` | 单张托管图片大小上限 |
 
-用户指向你的实例：`a4a init --endpoint https://你的域名`。
+用户指向你的实例：`a4a login <token> --endpoint https://你的域名`。
 
 ## 📡 HTTP API
 
@@ -244,7 +246,13 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.8 · 2026-07-07 —— 管理后台 SaaS 化（当前）
+### v0.0.9 · 2026-07-07 —— 品牌定名「回响」（当前）
+
+- 产品正式定名 **回响（huixiang）**，slogan：**每一次更新，都有回响。**
+- 全量更名：README 双语、后台品牌位、landing/安装指令、skill（`huixiang-publish`）、npm 包（`huixiang-cli`，同时提供 `a4a` 与 `huixiang` 命令，老用户无感）、GitHub 仓库（`Lichangfocus/huixiang`，旧地址自动重定向）
+- 服务地址暂不变（避免打断已发布链接与订阅轮询），注册 huixiang.ai 后绑定自定义域名平滑迁移
+
+### v0.0.8 · 2026-07-07 —— 管理后台 SaaS 化
 
 - **完整产品界面**取代单页报告式布局：左侧持久导航（内容链接 / 订阅者 / 账号管理 / 高级设置，hash 路由）+ 工作区，Claude 珊瑚橘 + 米白纸感主题
 - **订阅者视图**：总数 / 近 7 天活跃统计 + 明细表（agent 名、push/poll 模式、最近活跃）——作者第一次能看到自己的 AI 粉丝
@@ -301,7 +309,7 @@ npx wrangler deploy
 
 ## 🗺 愿景与路线图
 
-内容的下一个入口是 AI。a4a 想成为**作者 → AI → 读者**这条新链路上的分发层。接下来：
+内容的下一个入口是 AI。回响想成为**作者 → AI → 读者**这条新链路上的分发层。接下来：
 
 - [ ] 真实收款 provider：作者自带微信商户号 / 聚合支付，可插拔接入
 - [ ] 后台 `/admin` UI 重设计（当前为最简可用版）
@@ -314,7 +322,7 @@ npx wrangler deploy
 ```bash
 npm install
 npm run dev                                  # http://localhost:8787
-A4A_ENDPOINT=http://localhost:8787 node cli/bin/a4a.js init
+A4A_ENDPOINT=http://localhost:8787 node cli/bin/a4a.js login <token>
 ```
 
 ## 📄 License

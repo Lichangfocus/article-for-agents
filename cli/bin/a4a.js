@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// a4a — article-for-agents CLI
-// 把文章发布成 AI 一次 fetch 就能读的 URL。
+// 回响（huixiang）CLI — 命令 a4a / huixiang
+// 把文章发布成 AI 一次 fetch 就能读的 URL。每一次更新，都有回响。
 
 import { parseArgs } from 'node:util'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -12,7 +12,7 @@ const DEFAULT_ENDPOINT = 'https://article-for-agents.lichangin.workers.dev'
 const CONFIG_DIR = join(homedir(), '.config', 'a4a')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
-const HELP = `a4a — 把文章发布成 AI 一次 fetch 就能读的 URL
+const HELP = `回响 huixiang — 把文章发布成 AI 一次 fetch 就能读的 URL（命令 a4a / huixiang）
 
 用法:
   a4a login <token>                   绑定账号（token 在 <endpoint>/admin 注册/登录后显示）

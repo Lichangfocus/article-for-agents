@@ -1,16 +1,18 @@
 <div align="center">
 
-# article-for-agents · a4a
+# 回响 Huixiang
 
-**Content distribution for the AI era: make your readers your first subscribers of the agent age**
+**Every update, resounds.**
+
+Content distribution for the AI era: make your readers your first subscribers of the agent age
 
 Convert content to AI-readable form · Free links agents read in one `fetch` · Agents get guided to subscribe — every update is pushed to them
 
-[![npm](https://img.shields.io/npm/v/a4a-cli?label=a4a-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/a4a-cli)
+[![npm](https://img.shields.io/npm/v/huixiang-cli?label=huixiang-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/huixiang-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20KV%20%2B%20R2-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-d97757)](#-quick-start)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Lichangfocus/article-for-agents/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Lichangfocus/huixiang/pulls)
 
 [中文](README.md) | **English**
 
@@ -20,13 +22,13 @@ Convert content to AI-readable form · Free links agents read in one `fetch` · 
 
 ---
 
-## 💡 Why a4a
+## 💡 Why Huixiang
 
 **Point one: your writing needs to be easy for agents to read.** More and more reading happens inside AI — people hand articles to Claude, ChatGPT, or Kimi to summarize, translate, or file into a knowledge base. But platforms like WeChat Official Accounts and Xiaohongshu build pages for **humans**: anti-scraping, login walls, JS rendering. An agent trying to read your article is stuck with slow, brittle browser automation — or simply blocked. **Unreadable to agents means absent from the next generation of reading.**
 
 **Point two: agent-era traffic compounds — start collecting it now.** A reader's AI can keep watch on you for them — as long as there's an update source an agent can subscribe to. Provide one early, and your readers become your **first subscribers of the agent era**: every time you publish, their AI fetches it, reads it, and reports back.
 
-## ✨ So a4a does three things
+## ✨ So Huixiang does three things
 
 **1 · 📦 Convert any content into an AI-readable form**
 Paste a WeChat / Xiaohongshu link (or the raw text); it becomes clean Markdown + metadata, with images moved off hotlink-blocking CDNs onto same-origin hosting.
@@ -60,7 +62,7 @@ Every article points to your author page `/u/<pen-name>`; the embedded guide tea
 The agent reads the instructions and installs itself. Or do it manually:
 
 ```bash
-mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/a4a-publish/SKILL.md
+mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
 ```
 
 **Step 2 · Hand your AI an article (or a link)**
@@ -142,10 +144,10 @@ Body…
 
 ## ⌨️ CLI
 
-The skill is powered by the `a4a` CLI, which you can use directly:
+The skill is powered by the Huixiang CLI (npm package `huixiang-cli`, providing both `a4a` and `huixiang` commands), which you can use directly:
 
 ```bash
-npm install -g a4a-cli
+npm install -g huixiang-cli
 
 a4a login <token>               # bind your account (token shown in /admin after register/login)
 a4a login --email you@x.com --password …   # or exchange email credentials for a token
@@ -171,7 +173,7 @@ Title/author/tags are extracted from front matter or the first `# heading`; over
 The server is a single Cloudflare Worker + KV (+ optional R2):
 
 ```bash
-git clone https://github.com/Lichangfocus/article-for-agents && cd article-for-agents
+git clone https://github.com/Lichangfocus/huixiang && cd huixiang
 npm install
 
 cd server
@@ -192,7 +194,7 @@ Config (`vars` in `server/wrangler.jsonc`):
 | `LINK_TTL_DAYS` | `7` | link TTL in days |
 | `MAX_IMAGE_BYTES` | `5242880` | max hosted image size |
 
-Point users at your instance with `a4a init --endpoint https://your.domain`.
+Point users at your instance with `a4a login <token> --endpoint https://your.domain`.
 
 ## 📡 HTTP API
 
@@ -230,7 +232,13 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.8 · 2026-07-07 — the admin becomes a real SaaS console (current)
+### v0.0.9 · 2026-07-07 — the product is now named 回响 Huixiang (current)
+
+- Official name: **回响 Huixiang** — slogan: **Every update, resounds.**
+- Full rename: bilingual README, admin branding, landing/install copy, skill (`huixiang-publish`), npm package (`huixiang-cli`, shipping both `a4a` and `huixiang` commands so nothing breaks), GitHub repo (`Lichangfocus/huixiang`, old URLs redirect)
+- Service URL unchanged for now (keeps live links and subscriptions intact); a custom domain will take over after huixiang.ai is registered
+
+### v0.0.8 · 2026-07-07 — the admin becomes a real SaaS console
 
 - **Full product UI** replaces the single-page report: persistent sidebar (Links / Subscribers / Account / Advanced, hash routing) + workspace, Claude coral + cream theme
 - **Subscribers view**: totals / 7-day actives + detail table (agent name, push/poll mode, last active) — authors can finally see their AI followers
@@ -287,7 +295,7 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 ## 🗺 Vision & roadmap
 
-The next front door for content is AI. a4a aims to be the distribution layer on the new **author → AI → reader** path. Up next:
+The next front door for content is AI. Huixiang aims to be the distribution layer on the new **author → AI → reader** path. Up next:
 
 - [ ] Real payment providers: authors bring their own WeChat merchant account / aggregator, pluggable
 - [ ] Admin panel UI redesign (current one is a minimal working version)
@@ -300,7 +308,7 @@ The next front door for content is AI. a4a aims to be the distribution layer on 
 ```bash
 npm install
 npm run dev                                  # http://localhost:8787
-A4A_ENDPOINT=http://localhost:8787 node cli/bin/a4a.js init
+A4A_ENDPOINT=http://localhost:8787 node cli/bin/a4a.js login <token>
 ```
 
 ## 📄 License

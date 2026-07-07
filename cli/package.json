@@ -1,11 +1,11 @@
 {
-  "name": "a4a-cli",
-  "version": "0.4.0",
-  "description": "Publish articles as AI-readable URLs (article-for-agents CLI). 把文章发布成 AI 一次 fetch 可读的 URL。",
+  "name": "huixiang-cli",
+  "version": "0.5.0",
+  "description": "回响 huixiang CLI: publish articles as AI-readable URLs (commands: a4a / huixiang). 每一次更新，都有回响。",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Lichangfocus/article-for-agents.git",
+    "url": "git+https://github.com/Lichangfocus/huixiang.git",
     "directory": "cli"
   },
   "homepage": "https://article-for-agents.lichangin.workers.dev",
@@ -15,10 +15,13 @@
     "markdown",
     "publishing",
     "llm",
-    "content"
+    "content",
+    "huixiang",
+    "回响"
   ],
   "type": "module",
   "bin": {
+    "huixiang": "bin/a4a.js",
     "a4a": "bin/a4a.js"
   },
   "files": [

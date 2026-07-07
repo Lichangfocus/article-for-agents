@@ -1,4 +1,4 @@
-# article-for-agents 开发约定
+# 回响（huixiang）开发约定
 
 ## 版本迭代规则（每次功能更新必须执行）
 
@@ -11,11 +11,11 @@
 3. **README.en.md「🧭 Version history」**：同步英文条目
 
 纯 bug 修复 / 重构 / 文档改动不加版本号。产品版本号（0.0.x）独立于 npm 包
-`a4a-cli` 和各 package.json 的版本号，互不同步。
+`huixiang-cli` 和各 package.json 的版本号，互不同步。
 
 ## 其他约定
 
-- `skills/a4a-publish/SKILL.md` 是源文件，改完后复制到 `.claude/skills/a4a-publish/SKILL.md` 保持一致
+- `skills/huixiang-publish/SKILL.md` 是源文件，改完后复制到 `.claude/skills/huixiang-publish/SKILL.md` 保持一致
 - 服务端改动后跑 `cd server && npx tsc --noEmit`；CLI 改动后跑 `node --check cli/bin/a4a.js`
 - 本地联调：`npm run dev`（http://localhost:8787），CLI 用
   `A4A_ENDPOINT=http://localhost:8787 A4A_TOKEN=<token> node cli/bin/a4a.js …`；
