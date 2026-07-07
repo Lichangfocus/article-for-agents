@@ -46,7 +46,7 @@
 <summary><b>还有一些配套能力</b></summary>
 
 - **💰 Agent 支付协议** — 付费文章对 AI 返回 HTTP 402 + 对话内二维码，读者扫码、AI 自动解锁全文（当前沙箱）
-- **🧰 三种用法** — 对 AI 说一句话（skill）/ `a4a` CLI / 网页后台，全部自动开户免注册
+- **🧰 Agent 全流程 + 网页后台** — 发布/搬运全部交给 AI（skill 或 `a4a` CLI）；后台是 SaaS 式管理台（邮箱注册登录：链接管理、订阅者、账号、订阅引导设置）
 - **☁️ 一个 Worker 跑起来** — Cloudflare Workers + KV + R2 自部署，免费额度足够个人使用
 
 </details>
@@ -75,13 +75,13 @@ mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.l
 
 正文自动抓取转 Markdown，图片自动搬到 a4a 图床。
 
-**第 3 步 · 完成**
+**第 3 步 · 首次使用：注册账号（约 30 秒，仅一次）**
 
-首次运行时 skill 会自动完成开户——无需注册页、无需邮箱密码：
+skill 会引导你完成标准注册流程：
 
-- 🔑 自动创建账号（一个 token，即唯一凭证，**请妥善保存**）
-- ✍️ 自动分配笔名（新文章的默认作者，后台可改）
-- 🏠 自动生成作者主页 `/u/<笔名>`
+- 打开 [后台](https://article-for-agents.lichangin.workers.dev/admin) → 注册（**邮箱 + 用户名 + 密码**，前期免邮箱验证）
+- 用户名全局唯一，就是你的作者主页地址 `/u/<用户名>`
+- 注册成功页把「**绑定指令**」复制给你的 AI → 绑定完成（token 是 agent 接入凭证，忘了随时邮箱登录找回）
 
 之后每次运行，你得到：
 
@@ -115,13 +115,14 @@ mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.l
 
 ## 🖥 后台管理
 
-打开 [/admin](https://article-for-agents.lichangin.workers.dev/admin)，粘贴 token 登录（`a4a token` 查看），可以：
+打开 [/admin](https://article-for-agents.lichangin.workers.dev/admin) 邮箱登录（老 token 账号可用 token 登录入口），SaaS 式管理台，四个视图：
 
-- 查看/复制自己发布的所有链接（临期标红）
-- 一键**续期**（重置为 7 天）、**定价**、删除
-- 修改**笔名**（新文章的默认作者，也是主页地址）
+- **内容链接**：搜索、查看/复制、续期（重置 7 天）、定价、删除；空态有示例数据
+- **订阅者**：总数与近 7 天活跃、每个订阅 agent 的名字 / push·poll 模式 / 最近活跃
+- **账号管理**：用户名（唯一，即主页地址）、邮箱、文章署名（可改）、token 说明
+- **高级设置**：订阅引导配置（推送优先开关、轮询频率建议）
 
-token 只保存在你的浏览器本地，服务端仅存哈希。
+token 只保存在你的浏览器本地，服务端仅存哈希；密码加盐 PBKDF2 存储。
 
 ## 🤖 AI / 读者侧如何工作
 
@@ -160,7 +161,8 @@ skill 背后是 `a4a` CLI，也可以直接使用：
 ```bash
 npm install -g a4a-cli
 
-a4a init                        # 自动开户（分配笔名 + token + 主页）
+a4a login <token>               # 绑定账号（token 在 /admin 注册或登录后显示）
+a4a login --email 邮箱 --password 密码   # 或直接邮箱登录换 token
 a4a publish 文章.md              # 发布 → URL + 二维码
 a4a publish "https://mp.weixin.qq.com/s/xxxx"       # 公众号一键搬运（图片自动托管）
 a4a publish "https://www.xiaohongshu.com/explore/…" # 小红书图文一键搬运
@@ -213,8 +215,9 @@ npx wrangler deploy
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| POST | `/v1/keys` | 开户，返回 `{token, authorName, home_url}`（无需认证） |
-| GET / PUT | `/v1/me` | 查看 / 修改笔名（笔名唯一，兼作主页地址） |
+| POST | `/v1/register` | 注册：`{email, password, username}` → `{token, home_url}`（用户名唯一，即主页地址） |
+| POST | `/v1/login` | 邮箱登录 → 签发新的 Agent 接入 token（旧 token 仍有效） |
+| GET / PUT | `/v1/me` | 查看账号 / 修改署名与订阅引导设置 |
 | POST | `/v1/articles` | 发布 → `{id, url, expiresAt}` |
 | GET | `/v1/articles` | 列出自己的文章 |
 | GET / PUT / DELETE | `/v1/articles/:id` | 详情 / 更新 / 删除 |
@@ -241,7 +244,21 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.6 · 2026-07-07 —— Webhook 推送 + 创作者可配置订阅引导（当前）
+### v0.0.8 · 2026-07-07 —— 管理后台 SaaS 化（当前）
+
+- **完整产品界面**取代单页报告式布局：左侧持久导航（内容链接 / 订阅者 / 账号管理 / 高级设置，hash 路由）+ 工作区，Claude 珊瑚橘 + 米白纸感主题
+- **订阅者视图**：总数 / 近 7 天活跃统计 + 明细表（agent 名、push/poll 模式、最近活跃）——作者第一次能看到自己的 AI 粉丝
+- 内容链接主列表：搜索过滤 + 计数，空态展示示例数据；行操作重组为 查看 / 复制 / 设置▾（定价、续期、删除）
+- 注册成功页改为**绑定向导**：复制完整绑定指令（防止用户漏掉「发给 agent」这一步），复制后才解锁进入后台；表单防重复提交
+
+### v0.0.7 · 2026-07-07 —— 邮箱注册账号体系 + 新手引导重对齐
+
+- **注册制取代发号制**：邮箱 + 密码 + 唯一用户名（前期免邮箱验证）；`/v1/keys` 下线（410）
+- **用户名即主页地址** `/u/<用户名>`：注册后不可改，改「文章署名」不再影响主页；老 token 账号全兼容
+- **token 降级为 Agent 接入凭证**：注册/登录时签发（可多个并存），忘了随时邮箱登录找回；CLI 新增 `a4a login <token>` / `--email --password`
+- **skill 内置新手引导**：首次使用引导注册 → 用户粘贴绑定指令 → 绑定 → 告知用法；每次服务结束必附后台管理链接
+
+### v0.0.6 · 2026-07-07 —— Webhook 推送 + 创作者可配置订阅引导
 
 - **推送模式（优先引导）**：订阅登记时可带 `webhook` 回调 URL——作者发布/更新文章，服务端**立即 POST** 新文章 JSON 给订阅者，支持回调的 agent 完全不需要定时任务
 - **轮询兜底**：agent 给不出回调 URL 时才引导定时任务，建议频率由创作者配置（默认每天）

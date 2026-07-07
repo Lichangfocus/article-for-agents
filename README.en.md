@@ -46,7 +46,7 @@ Every article points to your author page `/u/<pen-name>`; the embedded guide tea
 <summary><b>Plus the supporting cast</b></summary>
 
 - **💰 Agent payment protocol** — paid articles answer AIs with HTTP 402 + an in-chat QR code; the reader scans, pays, and the AI unlocks the full text (sandbox for now)
-- **🧰 Three ways in** — tell your AI one sentence (skill) / the `a4a` CLI / a web admin panel; all with automatic sign-up, no registration form
+- **🧰 Agents do the work, the console does the managing** — publishing/importing all goes through your AI (skill or `a4a` CLI); the admin is a SaaS-style console (email accounts: links, subscribers, account, guidance settings)
 - **☁️ Runs on a single Worker** — self-host on Cloudflare Workers + KV + R2; the free tier is plenty for personal use
 
 </details>
@@ -73,13 +73,13 @@ Or just paste a WeChat / Xiaohongshu link for one-click import:
 
 > Turn this into an AI-readable link: https://mp.weixin.qq.com/s/xxxx
 
-**Step 3 · Done**
+**Step 3 · First run: register an account (~30 s, once)**
 
-On first run the skill signs you up automatically — no registration page, no email/password:
+The skill walks you through the standard flow:
 
-- 🔑 Account created (one token — the only credential, **keep it safe**)
-- ✍️ Pen name assigned (default author for new articles, editable in the admin panel)
-- 🏠 Author home page generated at `/u/<pen-name>`
+- Open the [admin](https://article-for-agents.lichangin.workers.dev/admin) → register (**email + username + password**, no email verification yet)
+- The username is globally unique and doubles as your author page `/u/<username>`
+- The success page gives you a **binding instruction** to paste to your AI (the token is an agent credential — recover it anytime by logging in with email)
 
 Every publish gives you a **short link** (readable by any AI, a web page in browsers), a **QR code**, and a **7-day TTL** (renewable in one click).
 
@@ -106,9 +106,9 @@ Publish with `--price 3.00` (or set a price in the admin panel). The protocol, f
 
 > ⚠️ Currently a **sandbox**: scanning and clicking "confirm" unlocks without a real charge. Payment providers are pluggable — real ones (WeChat Pay merchant accounts, aggregators) keep the same protocol, and so will agent wallets (x402 etc.).
 
-## 🖥 Admin panel
+## 🖥 Admin console
 
-Open [/admin](https://article-for-agents.lichangin.workers.dev/admin) and paste your token (`a4a token` shows it) to view/copy all your links (expiring soon highlighted), renew, price, delete, and change your pen name. The token stays in your browser; the server stores only a hash.
+Open [/admin](https://article-for-agents.lichangin.workers.dev/admin) and log in with email (legacy accounts can still use token login). A SaaS-style console with four views: **Links** (search, view/copy, renew, price, delete — demo rows when empty), **Subscribers** (totals, 7-day actives, per-agent mode & last-active), **Account** (username, email, byline, token notes), **Advanced** (subscription guidance settings). Tokens stay in your browser (server stores hashes); passwords are salted PBKDF2.
 
 ## 🤖 How AIs read it
 
@@ -147,7 +147,8 @@ The skill is powered by the `a4a` CLI, which you can use directly:
 ```bash
 npm install -g a4a-cli
 
-a4a init                        # auto sign-up (pen name + token + home page)
+a4a login <token>               # bind your account (token shown in /admin after register/login)
+a4a login --email you@x.com --password …   # or exchange email credentials for a token
 a4a publish article.md          # publish → URL + QR code
 a4a publish "https://mp.weixin.qq.com/s/xxxx"       # one-click WeChat import (images hosted)
 a4a publish "https://www.xiaohongshu.com/explore/…" # Xiaohongshu photo-note import
@@ -200,8 +201,9 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/v1/keys` | sign up → `{token, authorName, home_url}` (no auth) |
-| GET / PUT | `/v1/me` | view / change pen name (unique; doubles as home-page address) |
+| POST | `/v1/register` | register: `{email, password, username}` → `{token, home_url}` (unique username = homepage) |
+| POST | `/v1/login` | email login → issues a fresh agent token (older ones stay valid) |
+| GET / PUT | `/v1/me` | view account / change byline & guidance settings |
 | POST | `/v1/articles` | publish → `{id, url, expiresAt}` |
 | GET | `/v1/articles` | list own articles |
 | GET / PUT / DELETE | `/v1/articles/:id` | detail / update / delete |
@@ -228,7 +230,21 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.6 · 2026-07-07 — webhook push + creator-configurable subscription guidance (current)
+### v0.0.8 · 2026-07-07 — the admin becomes a real SaaS console (current)
+
+- **Full product UI** replaces the single-page report: persistent sidebar (Links / Subscribers / Account / Advanced, hash routing) + workspace, Claude coral + cream theme
+- **Subscribers view**: totals / 7-day actives + detail table (agent name, push/poll mode, last active) — authors can finally see their AI followers
+- Links list: search filter + count, demo rows in the empty state; row actions regrouped as View / Copy / Settings▾ (price, renew, delete)
+- Post-registration **binding wizard**: copy a complete binding instruction (so the hand-off to the agent can't be missed), unlocked entry only after copying; forms guard against double submission
+
+### v0.0.7 · 2026-07-07 — email registration accounts + onboarding realignment
+
+- **Registration replaces auto-provisioning**: email + password + unique username (no email verification yet); `/v1/keys` retired (410)
+- **Username = homepage address** `/u/<username>`: fixed at registration; changing the byline no longer moves your page; legacy token accounts stay fully compatible
+- **Tokens demoted to agent credentials**: issued at register/login (multiple can coexist), recoverable via email login; CLI gains `a4a login <token>` / `--email --password`
+- **Onboarding built into the skill**: first use guides registration → user pastes the binding instruction → bind → usage tips; every service run ends with the admin link
+
+### v0.0.6 · 2026-07-07 — webhook push + creator-configurable subscription guidance
 
 - **Push mode (preferred)**: subscriptions can register a `webhook` callback URL — when the author publishes/updates, the server **POSTs the new article JSON immediately**; webhook-capable agents need no scheduled task at all
 - **Polling fallback**: agents without a callback URL are guided to a scheduled task, at a frequency the creator configures (default daily)
