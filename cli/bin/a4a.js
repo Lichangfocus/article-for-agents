@@ -18,6 +18,7 @@ const HELP = `a4a — 把文章发布成 AI 一次 fetch 就能读的 URL
   a4a init [--endpoint <url>]         注册并保存 token（只需一次）
   a4a publish <file.md | ->           发布文章，输出 URL 和二维码
       [--title <t>] [--author <a>] [--source <原文链接>] [--tags a,b] [--no-qr]
+      [--price 3.00]                  付费文章（元）：AI 访问时返回 402 + 支付二维码
   a4a list                            列出我发布的文章
   a4a show <id>                       查看文章详情（含正文）
   a4a update <id> <file.md | ->       更新文章内容
@@ -159,6 +160,7 @@ async function main() {
       source: { type: 'string' },
       tags: { type: 'string' },
       lang: { type: 'string' },
+      price: { type: 'string' },
       endpoint: { type: 'string' },
       token: { type: 'string' },
       json: { type: 'boolean', default: false },
@@ -212,9 +214,12 @@ async function main() {
         source: values.source || extracted.source,
         tags: values.tags ? values.tags.split(',').map((t) => t.trim()) : extracted.tags,
         lang: values.lang,
+        price: values.price !== undefined ? parseFloat(values.price) : undefined,
       }
+      if (body.price !== undefined && (isNaN(body.price) || body.price < 0)) fail('--price 必须是 ≥0 的数字（元）', values.json)
       const result = await api(conn, 'POST', '/v1/articles', body)
       printPublished(result, values)
+      if (!values.json && body.price > 0) console.log(`💰 付费文章（¥${body.price.toFixed(2)}）：AI 访问会先收到支付二维码，读者扫码后解锁。`)
       return
     }
 
@@ -229,7 +234,8 @@ async function main() {
         return
       }
       for (const a of data.articles) {
-        console.log(`${a.id}  ${a.createdAt.slice(0, 10)}  有效期至 ${(a.expiresAt || '—').slice(0, 10)}  ${a.title}`)
+        const price = a.price ? `  ¥${a.price.toFixed(2)}` : ''
+        console.log(`${a.id}  ${a.createdAt.slice(0, 10)}  有效期至 ${(a.expiresAt || '—').slice(0, 10)}${price}  ${a.title}`)
         console.log(`          ${a.url}`)
       }
       return
@@ -261,6 +267,7 @@ async function main() {
         author: values.author || extracted.author,
         source: values.source || extracted.source,
         tags: values.tags ? values.tags.split(',').map((t) => t.trim()) : extracted.tags,
+        price: values.price !== undefined ? parseFloat(values.price) : undefined,
       }
       Object.keys(body).forEach((k) => body[k] === undefined && delete body[k])
       const data = await api(conn, 'PUT', `/v1/articles/${id}`, body)

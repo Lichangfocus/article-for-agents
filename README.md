@@ -50,6 +50,18 @@ mkdir -p ~/.claude/skills/a4a-publish && curl -fsSL https://article-for-agents.l
 
 token 只保存在你的浏览器本地，服务端仅存哈希。
 
+## 付费文章与 Agent 支付（实验中）
+
+发布时加 `--price 3.00`（或在后台「定价」）即为付费文章。AI 访问时的完整协议：
+
+1. agent `GET /<id>` → **HTTP 402** + Markdown 响应体：含价格、内容预览、支付二维码图片 URL、`claim_token` 和下一步指引
+2. agent 在对话框里贴出二维码：读者手机扫码 → 打开支付页 → 完成支付
+3. agent 轮询 `/pay/<pid>/status` 或直接带凭证重试 `GET /<id>?claim=<token>` → 200 全文
+4. 带凭证的地址对该读者**永久有效**
+
+> ⚠️ 当前为**模拟支付（沙箱）**：扫码后点「确认支付」即解锁，不真实扣款。支付 provider 是可插拔的，
+> 真实收款（微信商户号 / 聚合支付）接入后协议不变；未来 agent 自带钱包（x402 等）也是同一个 402 响应。
+
 ## AI / 读者侧如何工作
 
 把链接直接发给 AI 即可，无需任何说明。对 agent 而言：
@@ -85,6 +97,7 @@ npm install -g a4a-cli
 
 a4a init                        # 自动开户（分配笔名 + token）
 a4a publish 文章.md              # 发布 → URL + 二维码
+a4a publish 文章.md --price 3    # 付费文章（AI 访问返回 402 + 支付二维码）
 a4a list                        # 列出我的文章（含有效期）
 a4a update <id> 新版本.md        # 更新（URL 不变，有效期重置）
 a4a renew <id>                  # 续期 7 天
@@ -132,8 +145,11 @@ npx wrangler deploy
 | GET | `/v1/articles` | 列出自己的文章 |
 | GET / PUT / DELETE | `/v1/articles/:id` | 详情 / 更新 / 删除 |
 | POST | `/v1/articles/:id/renew` | 续期 |
-| GET | `/:id` | 公开阅读：agent 得 Markdown，浏览器得 HTML |
+| GET | `/:id` | 公开阅读：agent 得 Markdown，浏览器得 HTML；付费文章无凭证时返回 402 |
 | GET | `/:id.md` | 公开阅读：始终 Markdown |
+| GET | `/:id?claim=<token>` | 付费文章 + 已付凭证 → 全文 |
+| GET / POST | `/pay/:pid` · `/pay/:pid/confirm` | 支付页 / 确认支付（当前沙箱） |
+| GET | `/pay/:pid/status` · `/pay/:pid/qr.svg` | 支付状态轮询 / 二维码图片 |
 | GET | `/skill.md` | 下载发布 skill |
 | GET | `/install` | 给 agent 的 skill 安装指令（丢给 AI 即可自助安装） |
 | GET | `/admin` | 网页后台 |
@@ -144,7 +160,8 @@ npx wrangler deploy
 
 - [x] AI 可读短链 + 双形态渲染（v0.1）
 - [x] skill 一键发布 + 自动开户 + 网页后台（v0.2）
-- [ ] **Agent 支付**：AI 读取付费内容时代表读者付费，作者获得收入（下个版本）
+- [x] **Agent 支付协议**：HTTP 402 + 对话内二维码 + claim 凭证，沙箱 provider（v0.3）
+- [ ] 真实收款 provider：作者自带微信商户号 / 聚合支付，可插拔接入
 - [ ] 粘贴公众号链接自动抓取转 Markdown
 - [ ] 作者主页 `/u/<笔名>`：一个 URL 列出全部文章，方便 AI 批量收录
 - [ ] 图片托管（R2）
