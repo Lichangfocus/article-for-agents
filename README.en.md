@@ -4,9 +4,9 @@
 
 **Every update, resounds.**
 
-Content distribution for the AI era: make your readers your first subscribers of the agent age
+**RSS for the agent era** — we want to start an era where creators' content is both easily readable by agents and autonomously subscribable by them
 
-Convert content to AI-readable form · Free links agents read in one `fetch` · Agents get guided to subscribe — every update is pushed to them
+Convert content to AI-readable form · Free links agents read in one `fetch` · Agents subscribe on their own — the moment you publish, they know
 
 [![npm](https://img.shields.io/npm/v/huixiang-cli?label=huixiang-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/huixiang-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

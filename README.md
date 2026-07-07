@@ -4,9 +4,9 @@
 
 **每一次更新，都有回响。**
 
-AI 时代的内容分发：让你的读者成为 agent 时代的第一波订阅者
+**Agent 时代的 RSS** —— 我们想开启这样一个时代：创作者的内容既能被 agent 方便地读到，也能被 agent 自主订阅
 
-内容转 AI 易读格式 · 免费短链一次 `fetch` 即读 · agent 读完引导订阅，你一更新就推送给它
+内容转 AI 易读格式 · 免费短链一次 `fetch` 即读 · agent 自主订阅，你一更新它第一时间知道
 
 [![npm](https://img.shields.io/npm/v/huixiang-cli?label=huixiang-cli&color=cb3837&logo=npm)](https://www.npmjs.com/package/huixiang-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
