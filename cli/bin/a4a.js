@@ -15,7 +15,9 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 const HELP = `a4a — 把文章发布成 AI 一次 fetch 就能读的 URL
 
 用法:
-  a4a init [--endpoint <url>]         注册并保存 token（只需一次）
+  a4a login <token>                   绑定账号（token 在 <endpoint>/admin 注册/登录后显示）
+  a4a login --email <邮箱> --password <密码>   邮箱登录换取 token 并绑定
+      [--endpoint <url>]              连接自部署实例
   a4a publish <file.md | url | ->     发布文章，输出 URL 和二维码
       [--title <t>] [--author <a>] [--source <原文链接>] [--tags a,b] [--no-qr]
       [--price 3.00]                  付费文章（元）：AI 访问时返回 402 + 支付二维码
@@ -216,6 +218,8 @@ async function main() {
     options: {
       title: { type: 'string' },
       author: { type: 'string' },
+      email: { type: 'string' },
+      password: { type: 'string' },
       source: { type: 'string' },
       tags: { type: 'string' },
       lang: { type: 'string' },
@@ -238,6 +242,42 @@ async function main() {
   const conn = resolveConn(values)
 
   switch (cmd) {
+    case 'login': {
+      let token = rest[0]
+      let loginInfo = null
+      if (!token && values.email && values.password) {
+        loginInfo = await api(conn, 'POST', '/v1/login', { email: values.email, password: values.password }, { needAuth: false })
+        token = loginInfo.token
+      }
+      if (!token) fail('用法: a4a login <token>（后台注册/登录后显示）或 a4a login --email <邮箱> --password <密码>', values.json)
+      // 验证 token 并取账号信息
+      let me
+      try {
+        const res = await fetch(`${conn.endpoint}/v1/me`, { headers: { authorization: `Bearer ${token}` } })
+        if (!res.ok) fail(`token 无效（HTTP ${res.status}）。请在 ${conn.endpoint}/admin 登录后复制最新的 Agent 接入 token`, values.json)
+        me = await res.json()
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('fetch')) fail(`无法连接 ${conn.endpoint}: ${e.message}`, values.json)
+        throw e
+      }
+      const existing = loadConfig()
+      if (existing.token && existing.token !== token) {
+        const backupPath = `${CONFIG_PATH}.bak-${new Date().toISOString().replace(/[:.]/g, '-')}`
+        writeFileSync(backupPath, JSON.stringify(existing, null, 2) + '\n', { mode: 0o600 })
+        console.error(`⚠️ 旧配置已备份到: ${backupPath}`)
+      }
+      saveConfig({ endpoint: conn.endpoint, token })
+      if (values.json) {
+        console.log(JSON.stringify({ ok: true, endpoint: conn.endpoint, username: me.username, authorName: me.authorName, home_url: me.home_url, admin_url: `${conn.endpoint}/admin` }))
+      } else {
+        console.log(`✅ 已绑定账号${me.username ? ` @${me.username}` : ''}（${conn.endpoint}）`)
+        if (me.home_url) console.log(`   作者主页: ${me.home_url}`)
+        console.log(`   后台管理: ${conn.endpoint}/admin`)
+        console.log(`   现在可以: a4a publish 文章.md ，或直接丢公众号/小红书链接`)
+      }
+      return
+    }
+
     case 'init': {
       const existing = loadConfig()
       if (existing.token && !values.endpoint) {
