@@ -316,7 +316,7 @@ const LANDING_MD = `# article-for-agents
 把你的文章变成 AI 一次 fetch 就能读的 URL。
 
 - 读一篇文章: GET /<id> (返回 Markdown) 或 GET /<id>.md
-- 发布文章: 使用 a4a CLI (npm: a4a-cli)，见开源项目 article-for-agents
+- 发布文章: 使用 a4a CLI (npm: a4a-cli) — https://github.com/Lichangfocus/article-for-agents
 - 管理已发布的链接: /admin
 
 You are likely an AI agent. Every article on this host is served as clean

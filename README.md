@@ -20,7 +20,8 @@ a4a 让作者为自己的文章发布一份 **AI 可读副本**：
 把文章原文丢给 AI 说一句「转成 AI 可读链接」即可：
 
 ```bash
-cp -r skills/a4a-publish ~/.claude/skills/
+git clone https://github.com/Lichangfocus/article-for-agents
+cp -r article-for-agents/skills/a4a-publish ~/.claude/skills/
 ```
 
 skill 会自动安装 CLI、注册、整理正文成 Markdown、发布，然后把链接、有效期、后台地址报给你。
@@ -93,7 +94,7 @@ canonical: https://<host>/<id>
 服务端是单个 Cloudflare Worker + KV，免费额度足够个人使用：
 
 ```bash
-git clone <this-repo> && cd article-for-agents
+git clone https://github.com/Lichangfocus/article-for-agents && cd article-for-agents
 npm install
 
 cd server
