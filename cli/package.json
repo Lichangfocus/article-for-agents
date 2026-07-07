@@ -1,6 +1,6 @@
 {
   "name": "a4a-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Publish articles as AI-readable URLs (article-for-agents CLI). 把文章发布成 AI 一次 fetch 可读的 URL。",
   "license": "MIT",
   "repository": {
@@ -9,7 +9,14 @@
     "directory": "cli"
   },
   "homepage": "https://article-for-agents.lichangin.workers.dev",
-  "keywords": ["ai", "agents", "markdown", "publishing", "llm", "content"],
+  "keywords": [
+    "ai",
+    "agents",
+    "markdown",
+    "publishing",
+    "llm",
+    "content"
+  ],
   "type": "module",
   "bin": {
     "a4a": "bin/a4a.js"
