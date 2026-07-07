@@ -242,10 +242,16 @@ async function main() {
       const existing = loadConfig()
       if (existing.token && !values.endpoint) {
         console.log(`已有配置 (${CONFIG_PATH})，endpoint: ${existing.endpoint || DEFAULT_ENDPOINT}`)
-        console.log('如需重新注册，请先删除该文件。')
+        console.log('如需重新注册，请先删除该文件；连其他实例请加 --endpoint <url>（旧配置会自动备份）。')
         return
       }
       const data = await api(conn, 'POST', '/v1/keys', undefined, { needAuth: false })
+      if (existing.token) {
+        // token 是唯一凭证，覆盖前必须留底
+        const backupPath = `${CONFIG_PATH}.bak-${new Date().toISOString().replace(/[:.]/g, '-')}`
+        writeFileSync(backupPath, JSON.stringify(existing, null, 2) + '\n', { mode: 0o600 })
+        console.error(`⚠️ 检测到已有配置（endpoint: ${existing.endpoint || DEFAULT_ENDPOINT}），旧 token 已备份到:\n   ${backupPath}`)
+      }
       saveConfig({ endpoint: conn.endpoint, token: data.token })
       if (values.json) {
         console.log(JSON.stringify({ ok: true, endpoint: conn.endpoint, config: CONFIG_PATH, authorName: data.authorName, admin_url: data.admin_url, home_url: data.home_url, token: data.token }))

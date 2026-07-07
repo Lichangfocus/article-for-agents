@@ -274,6 +274,7 @@ Point users at your instance with `a4a init --endpoint https://your.domain`.
 The next front door for content is AI. a4a aims to be the distribution layer on the new **author → AI → reader** path. Up next:
 
 - [ ] Real payment providers: authors bring their own WeChat merchant account / aggregator, pluggable
+- [ ] Admin panel UI redesign (current one is a minimal working version)
 - [ ] Browser extension for one-click capture
 - [ ] `llms.txt` and site-level indexing
 - [ ] Abuse protection for public instances (rate limiting)
