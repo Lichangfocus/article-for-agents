@@ -1,7 +1,7 @@
 {
   "name": "a4a-server",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "article-for-agents server: Cloudflare Worker that serves articles as AI-readable markdown URLs",
   "license": "MIT",
   "type": "module",

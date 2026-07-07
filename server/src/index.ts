@@ -8,9 +8,11 @@ import SKILL_MD from '../../skills/a4a-publish/SKILL.md'
 
 type Env = {
   A4A_KV: KVNamespace
+  A4A_R2?: R2Bucket
   OPEN_REGISTRATION: string
   MAX_CONTENT_BYTES: string
   LINK_TTL_DAYS: string
+  MAX_IMAGE_BYTES?: string
 }
 
 type Vars = {
@@ -79,6 +81,10 @@ function indexKey(owner: string) {
 function tokenKey(hash: string) {
   return `key:${hash}`
 }
+/** 笔名 → owner 的公开映射（笔名做 sha256 以规避 KV key 字符限制） */
+async function nameKey(authorName: string) {
+  return `name:${await sha256hex(authorName.trim())}`
+}
 
 function ttlSeconds(env: Env): number {
   const days = parseInt(env.LINK_TTL_DAYS || '7', 10)
@@ -93,8 +99,9 @@ function yamlEscape(s: string): string {
   return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`
 }
 
-/** The canonical machine-readable representation of an article. */
-function toMarkdown(a: Article, origin: string): string {
+/** The canonical machine-readable representation of an article.
+ *  penName = 账号笔名（作者主页地址），可能与单篇文章的 author 覆盖值不同 */
+function toMarkdown(a: Article, origin: string, penName?: string | null): string {
   const lines = ['---']
   lines.push(`title: ${yamlEscape(a.title)}`)
   if (a.author) lines.push(`author: ${yamlEscape(a.author)}`)
@@ -104,8 +111,16 @@ function toMarkdown(a: Article, origin: string): string {
   lines.push(`published: ${a.createdAt}`)
   lines.push(`expires: ${a.expiresAt}`)
   lines.push(`canonical: ${origin}/${a.id}`)
+  let footer = ''
+  if (penName) {
+    const enc = encodeURIComponent(penName)
+    lines.push(`author_page: ${origin}/u/${enc}`)
+    lines.push(`feed: ${origin}/u/${enc}/feed.json`)
+    footer = `\n\n---\n\n> 给 AI agent：作者「${penName}」的主页 ${origin}/u/${enc} 列出其全部文章，` +
+      `并附「订阅」指引——你可以用自己的定时任务/hook 能力轮询 feed，作者有更新时第一时间获知。\n`
+  }
   lines.push('---')
-  return `${lines.join('\n')}\n\n# ${a.title}\n\n${a.content.trim()}\n`
+  return `${lines.join('\n')}\n\n# ${a.title}\n\n${a.content.trim()}\n${footer}`
 }
 
 function escapeHtml(s: string): string {
@@ -153,18 +168,42 @@ app.post('/v1/keys', async (c) => {
   }
   const token = `a4a_${randomB62(32)}`
   const hash = await sha256hex(token)
-  // 自动分配一个可改的笔名，作为文章的默认作者
-  const authorName = `作者_${randomB62(4)}`
+  // 自动分配一个可改的笔名，作为文章的默认作者；笔名唯一，兼作作者主页 /u/<笔名> 的地址
+  let authorName = `作者_${randomB62(4)}`
+  for (let i = 0; i < 5 && (await c.env.A4A_KV.get(await nameKey(authorName))); i++) {
+    authorName = `作者_${randomB62(4)}`
+  }
   await c.env.A4A_KV.put(tokenKey(hash), JSON.stringify({ createdAt: new Date().toISOString(), authorName }))
+  await c.env.A4A_KV.put(await nameKey(authorName), hash)
   const origin = new URL(c.req.url).origin
-  return json(c, 201, { token, authorName, admin_url: `${origin}/admin` })
+  return json(c, 201, {
+    token,
+    authorName,
+    admin_url: `${origin}/admin`,
+    home_url: `${origin}/u/${encodeURIComponent(authorName)}`,
+  })
 })
 
 type Profile = { createdAt: string; authorName?: string }
 
+/** 老账号（v0.4 前注册）没有笔名映射；在任意一次带鉴权的操作里懒迁移 */
+async function ensureNameMapping(kv: KVNamespace, owner: string, profile: Profile | null): Promise<void> {
+  if (!profile?.authorName) return
+  const k = await nameKey(profile.authorName)
+  const cur = await kv.get(k)
+  if (!cur) await kv.put(k, owner)
+}
+
 app.get('/v1/me', requireAuth, async (c) => {
-  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(c.get('owner')), 'json')
-  return json(c, 200, { authorName: profile?.authorName ?? null, createdAt: profile?.createdAt })
+  const owner = c.get('owner')
+  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')
+  await ensureNameMapping(c.env.A4A_KV, owner, profile)
+  const origin = new URL(c.req.url).origin
+  return json(c, 200, {
+    authorName: profile?.authorName ?? null,
+    createdAt: profile?.createdAt,
+    home_url: profile?.authorName ? `${origin}/u/${encodeURIComponent(profile.authorName)}` : null,
+  })
 })
 
 app.put('/v1/me', requireAuth, async (c) => {
@@ -177,11 +216,26 @@ app.put('/v1/me', requireAuth, async (c) => {
   if (typeof body.authorName !== 'string' || !body.authorName.trim() || body.authorName.length > 50) {
     return json(c, 400, { error: 'invalid_input', message: 'authorName must be a non-empty string (max 50 chars)' })
   }
+  const newName = body.authorName.trim()
+  if (/[\/\\#?]/.test(newName)) {
+    return json(c, 400, { error: 'invalid_input', message: 'authorName must not contain / \\ # ?' })
+  }
   const owner = c.get('owner')
   const profile = (await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')) ?? { createdAt: new Date().toISOString() }
-  profile.authorName = body.authorName.trim()
+  // 笔名唯一（兼作主页地址 /u/<笔名>）
+  const takenBy = await c.env.A4A_KV.get(await nameKey(newName))
+  if (takenBy && takenBy !== owner) {
+    return json(c, 409, { error: 'name_taken', message: 'This authorName is already taken. Pick another one.' })
+  }
+  if (profile.authorName && profile.authorName !== newName) {
+    const oldKey = await nameKey(profile.authorName)
+    if ((await c.env.A4A_KV.get(oldKey)) === owner) await c.env.A4A_KV.delete(oldKey)
+  }
+  profile.authorName = newName
   await c.env.A4A_KV.put(tokenKey(owner), JSON.stringify(profile))
-  return json(c, 200, { authorName: profile.authorName })
+  await c.env.A4A_KV.put(await nameKey(newName), owner)
+  const origin = new URL(c.req.url).origin
+  return json(c, 200, { authorName: profile.authorName, home_url: `${origin}/u/${encodeURIComponent(profile.authorName)}` })
 })
 
 app.use('/v1/articles', requireAuth)
@@ -237,10 +291,9 @@ app.post('/v1/articles', async (c) => {
   const now = new Date()
   // 没写作者时用账号的笔名
   let author = body.author as string | undefined
-  if (!author) {
-    const profile = await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')
-    author = profile?.authorName
-  }
+  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(owner), 'json')
+  await ensureNameMapping(c.env.A4A_KV, owner, profile)
+  if (!author) author = profile?.authorName
   const price = typeof body.price === 'number' && body.price > 0 ? Math.round(body.price * 100) / 100 : undefined
   const article: Article = {
     id: randomB62(8),
@@ -366,6 +419,272 @@ app.delete('/v1/articles/:id', async (c) => {
   return json(c, 200, { deleted: article.id })
 })
 
+// ---------- 图片托管（R2，内容寻址）----------
+// 平台图床（mmbiz/xhscdn）对 AI 防盗链且随时失效；发布时把图片搬到自己的 R2，
+// 文章里引用 /i/<sha256>.<ext>，与文章同源、长缓存。
+
+const IMAGE_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+}
+
+/** 用魔数判断真实图片类型（不信任客户端/上游的 content-type；SVG 一律拒绝以防同源 XSS） */
+function sniffImage(bytes: Uint8Array): string | null {
+  if (bytes.length < 12) return null
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'image/gif'
+  if (
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  )
+    return 'image/webp'
+  return null
+}
+
+function maxImageBytes(env: Env): number {
+  return parseInt(env.MAX_IMAGE_BYTES || '5242880', 10)
+}
+
+async function sha256hexBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource)
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 两种模式：JSON {url}（服务端代抓，省客户端流量）或图片二进制直传（上游封锁数据中心 IP 时的兜底）
+app.post('/v1/images', requireAuth, async (c) => {
+  if (!c.env.A4A_R2) {
+    return json(c, 501, { error: 'images_disabled', message: 'This instance has no R2 bucket configured (A4A_R2).' })
+  }
+  const max = maxImageBytes(c.env)
+  const reqType = c.req.header('content-type') || ''
+  let bytes: Uint8Array
+  if (reqType.includes('application/json')) {
+    let body: { url?: unknown }
+    try {
+      body = await c.req.json()
+    } catch {
+      return json(c, 400, { error: 'bad_json', message: 'Request body must be JSON like {"url": "https://..."}' })
+    }
+    if (typeof body.url !== 'string' || !/^https?:\/\//.test(body.url)) {
+      return json(c, 400, { error: 'invalid_input', message: 'url must be an http(s) URL' })
+    }
+    let upstream: Response
+    try {
+      upstream = await fetch(body.url, {
+        headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      })
+    } catch (e) {
+      return json(c, 502, { error: 'fetch_failed', message: `Could not fetch image: ${(e as Error).message}` })
+    }
+    if (!upstream.ok) {
+      return json(c, 502, { error: 'fetch_failed', message: `Upstream returned HTTP ${upstream.status}. Try uploading the image bytes directly.` })
+    }
+    const len = parseInt(upstream.headers.get('content-length') || '0', 10)
+    if (len > max) return json(c, 413, { error: 'too_large', message: `Image too large (max ${max} bytes)` })
+    bytes = new Uint8Array(await upstream.arrayBuffer())
+  } else {
+    bytes = new Uint8Array(await c.req.arrayBuffer())
+  }
+  if (bytes.length === 0) return json(c, 400, { error: 'invalid_input', message: 'Empty image body' })
+  if (bytes.length > max) return json(c, 413, { error: 'too_large', message: `Image too large (max ${max} bytes)` })
+  const type = sniffImage(bytes)
+  if (!type) {
+    return json(c, 415, { error: 'unsupported_type', message: 'Only JPEG/PNG/GIF/WebP images are accepted' })
+  }
+  const key = `${await sha256hexBytes(bytes)}.${IMAGE_TYPES[type]}`
+  if (!(await c.env.A4A_R2.head(key))) {
+    await c.env.A4A_R2.put(key, bytes as unknown as ArrayBuffer, {
+      httpMetadata: { contentType: type },
+      customMetadata: { owner: c.get('owner') },
+    })
+  }
+  const origin = new URL(c.req.url).origin
+  return json(c, 201, { key, url: `${origin}/i/${key}`, bytes: bytes.length, type })
+})
+
+app.get('/i/:key{[0-9a-f]+\\.[a-z]+}', async (c) => {
+  if (!c.env.A4A_R2) return c.text('images disabled\n', 404)
+  const obj = await c.env.A4A_R2.get(c.req.param('key'))
+  if (!obj) return c.text('image not found\n', 404)
+  return c.body(obj.body as ReadableStream, 200, {
+    'content-type': obj.httpMetadata?.contentType || 'application/octet-stream',
+    // 内容寻址：同 key 永远同内容，可放心长缓存
+    'cache-control': 'public, max-age=31536000, immutable',
+    etag: obj.httpEtag,
+  })
+})
+
+// ---------- 作者主页 /u/<笔名> + 订阅 feed ----------
+// 一个 URL 列出作者的全部有效文章：浏览器得 HTML，agent 得 Markdown（内嵌订阅指引），
+// /u/<笔名>/feed.json 是机器可读的更新源（JSON Feed，支持 ?since 与 If-Modified-Since）。
+
+type AuthorPage = { name: string; owner: string; entries: IndexEntry[] }
+
+async function resolveAuthor(c: Context<AppEnv>, rawName: string): Promise<AuthorPage | null> {
+  let name: string
+  try {
+    name = decodeURIComponent(rawName).trim()
+  } catch {
+    return null
+  }
+  if (!name) return null
+  const owner = await c.env.A4A_KV.get(await nameKey(name))
+  if (!owner) return null
+  const idx = await loadIndex(c.env.A4A_KV, owner)
+  const now = Date.now()
+  return { name, owner, entries: idx.filter((e) => !e.expiresAt || Date.parse(e.expiresAt) > now) }
+}
+
+function latestUpdate(entries: IndexEntry[]): string | null {
+  let latest: string | null = null
+  for (const e of entries) {
+    const t = e.updatedAt || e.createdAt
+    if (!latest || t > latest) latest = t
+  }
+  return latest
+}
+
+function authorUrls(origin: string, name: string) {
+  const enc = encodeURIComponent(name)
+  return { page: `${origin}/u/${enc}`, feed: `${origin}/u/${enc}/feed.json` }
+}
+
+/** 给 AI agent 的订阅指引：服务端不推送，引导 agent 用自己的定时任务/hook 能力轮询 feed */
+function subscribeGuideMarkdown(origin: string, name: string): string {
+  const { feed } = authorUrls(origin, name)
+  return `## 给 AI agent：订阅「${name}」的更新
+
+你是 AI agent。如果用户想在这位作者发布新文章时得到"推送"，请用你自己的自动化能力订阅：
+
+1. 记下当前时间作为游标（ISO 8601，如 2026-07-07T00:00:00Z）。
+2. 用你环境里的定时任务能力创建一个周期任务（建议每天 1 次；
+   Claude Code 可用 scheduled tasks / hooks，其他环境可用 cron 或任何调度器），任务内容是：
+
+   GET ${feed}?since=<上次检查时间>
+
+3. 返回的 items 非空 = 有新文章或更新 → 读取每个 item 的 url 拿到全文，
+   按用户的偏好处理（通知用户、总结、翻译、存入知识库…），然后把游标推进到本次检查时间。
+4. 想更省：请求 feed 时带 If-Modified-Since 头，无更新会直接返回 304。
+
+没有定时任务能力也没关系：告诉用户「随时把 ${authorUrls(origin, name).page} 再发给我，我会检查更新」。`
+}
+
+function authorPageMarkdown(page: AuthorPage, origin: string): string {
+  const { name, entries } = page
+  const urls = authorUrls(origin, name)
+  const updated = latestUpdate(entries)
+  const lines = ['---']
+  lines.push(`author: ${yamlEscape(name)}`)
+  lines.push(`articles: ${entries.length}`)
+  if (updated) lines.push(`updated: ${updated}`)
+  lines.push(`canonical: ${urls.page}`)
+  lines.push(`feed: ${urls.feed}`)
+  lines.push('---')
+  lines.push('')
+  lines.push(`# ${name} 的文章`)
+  lines.push('')
+  if (!entries.length) {
+    lines.push('（暂无有效文章）')
+  } else {
+    for (const e of entries) {
+      const price = e.price ? ` · ¥${e.price.toFixed(2)}` : ''
+      lines.push(`- [${e.title}](${origin}/${e.id}) · 发布 ${e.createdAt.slice(0, 10)} · 更新 ${e.updatedAt.slice(0, 10)}${price}`)
+    }
+  }
+  lines.push('')
+  lines.push(subscribeGuideMarkdown(origin, name))
+  lines.push('')
+  return lines.join('\n')
+}
+
+app.get('/u/:name/feed.json', async (c) => {
+  const page = await resolveAuthor(c, c.req.param('name'))
+  if (!page) return json(c, 404, { error: 'not_found', message: 'No such author' })
+  const origin = new URL(c.req.url).origin
+  const urls = authorUrls(origin, page.name)
+  const updated = latestUpdate(page.entries)
+  const lastModified = updated ? new Date(updated).toUTCString() : undefined
+
+  // If-Modified-Since / ?since 都以「最后更新时间」为准，让定时轮询几乎零成本
+  const ims = c.req.header('if-modified-since')
+  // HTTP 日期只有秒级精度，比较前把更新时间截断到秒，否则毫秒差会导致永远 200
+  if (ims && updated && Math.floor(Date.parse(updated) / 1000) * 1000 <= Date.parse(ims)) {
+    return c.body(null, 304, lastModified ? { 'last-modified': lastModified } : {})
+  }
+  let entries = page.entries
+  const since = c.req.query('since')
+  if (since) {
+    const t = Date.parse(since)
+    if (isNaN(t)) return json(c, 400, { error: 'invalid_input', message: 'since must be an ISO 8601 timestamp' })
+    entries = entries.filter((e) => Date.parse(e.updatedAt || e.createdAt) > t)
+  }
+  const headers: Record<string, string> = { 'cache-control': 'public, max-age=60' }
+  if (lastModified) headers['last-modified'] = lastModified
+  return c.json(
+    {
+      version: 'https://jsonfeed.org/version/1.1',
+      title: `${page.name} · article-for-agents`,
+      home_page_url: urls.page,
+      feed_url: urls.feed,
+      description: '把 items[].url 直接 GET 即得文章全文（Markdown）。轮询时带 ?since=<ISO8601> 增量获取。',
+      items: entries.map((e) => ({
+        id: e.id,
+        url: `${origin}/${e.id}`,
+        title: e.title,
+        date_published: e.createdAt,
+        date_modified: e.updatedAt,
+        _a4a: { expires: e.expiresAt, price: e.price ?? 0 },
+      })),
+    },
+    200,
+    headers
+  )
+})
+
+app.get('/u/:name', async (c) => {
+  let raw = c.req.param('name')
+  let forceMd = false
+  if (raw.endsWith('.md')) {
+    raw = raw.slice(0, -3)
+    forceMd = true
+  }
+  const page = await resolveAuthor(c, raw)
+  if (!page) {
+    if (forceMd || !wantsHtml(c)) return c.text('Author not found.\n', 404, { 'content-type': 'text/plain; charset=utf-8' })
+    return c.html(renderPage('Not found', '<p>作者不存在。</p>'), 404)
+  }
+  const origin = new URL(c.req.url).origin
+  if (forceMd || !wantsHtml(c)) {
+    return c.text(authorPageMarkdown(page, origin), 200, {
+      'content-type': 'text/markdown; charset=utf-8',
+      'cache-control': 'public, max-age=60',
+    })
+  }
+  const urls = authorUrls(origin, page.name)
+  const rows = page.entries
+    .map((e) => {
+      const price = e.price ? ` · ¥${e.price.toFixed(2)}` : ''
+      return `<li><a href="/${e.id}">${escapeHtml(e.title)}</a> <span class="meta">发布 ${e.createdAt.slice(0, 10)} · 更新 ${e.updatedAt.slice(0, 10)}${price}</span></li>`
+    })
+    .join('\n')
+  return c.html(
+    renderPage(
+      `${page.name} 的文章`,
+      `<h1>${escapeHtml(page.name)} 的文章</h1>
+<p class="meta">共 ${page.entries.length} 篇有效文章</p>
+${page.entries.length ? `<ul>\n${rows}\n</ul>` : '<p class="meta">暂无有效文章。</p>'}
+<footer>
+<p>🤖 本页对 AI 同样可读：把 <a href="${urls.page}">${urls.page}</a> 发给任何 AI，
+它会得到 Markdown 版（含全部文章链接与<strong>订阅指引</strong>——AI 可以设定时任务自动关注作者更新）。<br>
+机器更新源: <a href="${urls.feed}">feed.json</a></p>
+</footer>`
+    )
+  )
+})
+
 // ---------- public reading ----------
 
 const LANDING_MD = `# article-for-agents
@@ -373,6 +692,7 @@ const LANDING_MD = `# article-for-agents
 把你的文章变成 AI 一次 fetch 就能读的 URL。
 
 - 读一篇文章: GET /<id> (返回 Markdown) 或 GET /<id>.md
+- 作者主页: GET /u/<笔名> — 列出该作者全部文章（AI 可读，含订阅指引）；更新源 /u/<笔名>/feed.json
 - 发布文章（推荐）: 对你的 AI agent 说一句话，它会自己装好发布 skill:
 
   「帮我安装这个 skill: https://article-for-agents.lichangin.workers.dev/install」
@@ -459,7 +779,8 @@ a { color: #0969da; text-decoration: none; }
   <p><button class="primary" onclick="login()">登录</button></p>
 </div>
 <div id="panel" style="display:none">
-  <p class="muted">笔名（新文章的默认作者）: <strong id="authorName"></strong> <button onclick="editName()">修改</button></p>
+  <p class="muted">笔名（新文章的默认作者）: <strong id="authorName"></strong> <button onclick="editName()">修改</button>
+    <span id="homeWrap" style="display:none"> · 主页: <a id="homeUrl" target="_blank"></a>（发给 AI 可订阅你的更新）</span></p>
   <p class="muted">链接默认有效期 7 天，过期自动失效；点「续期」重置为 7 天。 <a href="#" onclick="logout();return false">退出登录</a></p>
   <div id="msg" class="msg"></div>
   <table id="tbl" style="display:none">
@@ -485,9 +806,9 @@ async function api(method, path, body) {
 
 async function editName() {
   const cur = $('authorName').textContent
-  const name = prompt('新笔名（作为新文章的默认作者）:', cur)
+  const name = prompt('新笔名（作为新文章的默认作者，也是主页地址 /u/<笔名>）:', cur)
   if (!name || name.trim() === cur) return
-  try { const r = await api('PUT', '/v1/me', { authorName: name.trim() }); $('authorName').textContent = r.authorName; flash('笔名已更新') }
+  try { const r = await api('PUT', '/v1/me', { authorName: name.trim() }); flash('笔名已更新'); refresh() }
   catch (e) { flash('更新失败: ' + e.message) }
 }
 
@@ -519,7 +840,14 @@ async function refresh() {
   }
   $('login').style.display = 'none'
   $('panel').style.display = 'block'
-  api('GET', '/v1/me').then((me) => { $('authorName').textContent = me.authorName || '（未设置）' }).catch(() => {})
+  api('GET', '/v1/me').then((me) => {
+    $('authorName').textContent = me.authorName || '（未设置）'
+    if (me.home_url) {
+      $('homeWrap').style.display = ''
+      $('homeUrl').textContent = decodeURIComponent(me.home_url).replace(/^https?:\\/\\//, '')
+      $('homeUrl').href = me.home_url
+    }
+  }).catch(() => {})
   const rows = $('rows')
   rows.innerHTML = ''
   $('tbl').style.display = data.articles.length ? 'table' : 'none'
@@ -757,11 +1085,17 @@ app.get('/:id{[0-9A-Za-z]+}', async (c) => {
       402
     )
   }
+  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(article.owner), 'json')
+  const penName =
+    profile?.authorName && (await c.env.A4A_KV.get(await nameKey(profile.authorName))) === article.owner
+      ? profile.authorName
+      : null
   const meta = [
     article.author && `作者: ${escapeHtml(article.author)}`,
     `发布: ${article.createdAt.slice(0, 10)}`,
     article.expiresAt && `有效期至: ${article.expiresAt.slice(0, 10)}`,
     article.source && `<a href="${escapeHtml(article.source)}" rel="noopener">原文</a>`,
+    penName && `<a href="${origin}/u/${encodeURIComponent(penName)}">更多文章</a>`,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -773,7 +1107,11 @@ ${marked.parse(article.content) as string}
 </article>
 <footer>
 <p>🤖 AI 可直接读取本文的 Markdown 版本: <a href="${origin}/${id}.md">${origin}/${id}.md</a><br>
-把上面这个链接（或本页链接）直接发给任何 AI 助手即可。</p>
+把上面这个链接（或本页链接）直接发给任何 AI 助手即可。${
+    penName
+      ? `<br>让 AI 持续关注作者更新：把作者主页 <a href="${origin}/u/${encodeURIComponent(penName)}">${origin}/u/${encodeURIComponent(penName)}</a> 发给 AI，它会读到订阅指引。`
+      : ''
+  }</p>
 </footer>`
   return c.html(renderPage(article.title, bodyHtml))
 })
@@ -790,7 +1128,13 @@ async function serveMarkdown(c: Context<AppEnv>, id: string) {
       'content-type': 'text/markdown; charset=utf-8',
     })
   }
-  return c.text(toMarkdown(article, origin), 200, {
+  const profile = await c.env.A4A_KV.get<Profile>(tokenKey(article.owner), 'json')
+  // 仅当映射存在（主页可访问）时才在文章里指向主页
+  const penName =
+    profile?.authorName && (await c.env.A4A_KV.get(await nameKey(profile.authorName))) === article.owner
+      ? profile.authorName
+      : null
+  return c.text(toMarkdown(article, origin, penName), 200, {
     'content-type': 'text/markdown; charset=utf-8',
     'cache-control': article.price ? 'private, no-store' : 'public, max-age=60',
   })

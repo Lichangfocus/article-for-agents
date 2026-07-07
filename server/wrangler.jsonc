@@ -12,6 +12,14 @@
       "id": "58fc9aace2104f6e9d60cfea6f83ef48"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "A4A_R2",
+      // 图片托管。自部署时运行: npx wrangler r2 bucket create a4a-images
+      // （需要在 Cloudflare 控制台启用 R2，免费额度 10GB。不想用图片托管可删除本段，功能自动降级）
+      "bucket_name": "a4a-images"
+    }
+  ],
   "vars": {
     // 允许任何人调用 POST /v1/keys 自助注册 token；
     // 公共实例如果担心滥用可设为 "false"，改为手动发 token
