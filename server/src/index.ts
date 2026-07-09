@@ -927,7 +927,8 @@ function readCommand(origin: string, id: string, title: string): string {
 
 function subscribeCommand(origin: string, penName: string): string {
   // 口令是给人复制传播的文本，URL 里直接用中文（IRI），可读性优先；客户端请求时会自动编码
-  return `请帮我订阅作者「${penName}」的更新：读取 ${origin}/u/${penName} 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。`
+  // 语义 = 先全量补课，再建立追更：两段动作都由用户口令授权
+  return `请帮我订阅作者「${penName}」：第一步，读取 ${origin}/u/${penName} 拿到文章列表，把现有文章都读一遍，给我一份这位作者的整体介绍；第二步，按页内「给 AI agent 的订阅执行步骤」完成登记，并用你的定时任务能力建立自动追更。之后作者有新文章，第一时间告诉我。`
 }
 
 /** 生成一篇文章的口令组（penName 缺失时只有阅读口令） */

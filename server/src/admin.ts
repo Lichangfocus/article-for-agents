@@ -606,7 +606,7 @@ function showCmd(id, title) {
   $('cmdReadQr').href = o + '/c/' + id + '/read.svg'
   const n = pubName()
   if (n) {
-    $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」的更新：读取 ' + o + '/u/' + n + ' 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。'
+    $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」：第一步，读取 ' + o + '/u/' + n + ' 拿到文章列表，把现有文章都读一遍，给我一份这位作者的整体介绍；第二步，按页内「给 AI agent 的订阅执行步骤」完成登记，并用你的定时任务能力建立自动追更。之后作者有新文章，第一时间告诉我。'
     $('cmdSubQr').href = o + '/c/' + id + '/subscribe.svg'
   }
   $('cmdPage').textContent = o + '/c/' + id
@@ -622,7 +622,7 @@ function showAuthorCmd() {
   const o = location.origin
   document.querySelectorAll('.cmditem')[0].style.display = 'none'
   document.querySelectorAll('.cmditem')[2].style.display = 'none'
-  $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」的更新：读取 ' + o + '/u/' + n + ' 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。'
+  $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」：第一步，读取 ' + o + '/u/' + n + ' 拿到文章列表，把现有文章都读一遍，给我一份这位作者的整体介绍；第二步，按页内「给 AI agent 的订阅执行步骤」完成登记，并用你的定时任务能力建立自动追更。之后作者有新文章，第一时间告诉我。'
   $('cmdSubQr').href = o + '/u/' + encodeURIComponent(n) + '/subscribe.svg'
   $('cmdMask').classList.add('on')
 }
