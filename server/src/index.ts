@@ -76,6 +76,18 @@ async function sha256hex(s: string): Promise<string> {
 function articleKey(id: string) {
   return `art:${id}`
 }
+function readsKey(id: string) {
+  return `reads:${id}`
+}
+/** 阅读回响：AI 读到一次 +1（KV 读改写，低频场景下丢失可忽略；CDN 缓存命中不计数，属低估） */
+function bumpReads(c: Context<AppEnv>, id: string): void {
+  c.executionCtx.waitUntil(
+    (async () => {
+      const cur = parseInt((await c.env.A4A_KV.get(readsKey(id))) || '0', 10)
+      await c.env.A4A_KV.put(readsKey(id), String(cur + 1))
+    })().catch(() => {})
+  )
+}
 function indexKey(owner: string) {
   return `idx:${owner}`
 }
@@ -609,8 +621,12 @@ app.get('/v1/articles', async (c) => {
   }
   if (changed) await saveIndex(c.env.A4A_KV, owner, live)
   const origin = new URL(c.req.url).origin
+  // 阅读回响：附上每篇的 AI 阅读次数（上限 100 篇避免读放大）
+  const reads = await Promise.all(
+    live.slice(0, 100).map((e) => c.env.A4A_KV.get(readsKey(e.id)).then((v) => parseInt(v || '0', 10)))
+  )
   return json(c, 200, {
-    articles: live.map((e) => ({ ...e, url: `${origin}/${e.id}` })),
+    articles: live.map((e, i) => ({ ...e, url: `${origin}/${e.id}`, reads: reads[i] ?? 0 })),
   })
 })
 
@@ -1630,10 +1646,12 @@ app.get('/:id{[0-9A-Za-z]+}', async (c) => {
     )
   }
   const penName = await verifiedPublicName(c.env.A4A_KV, article.owner)
+  const reads = parseInt((await c.env.A4A_KV.get(readsKey(article.id))) || '0', 10)
   const meta = [
     article.author && `作者: ${escapeHtml(article.author)}`,
     `发布: ${article.createdAt.slice(0, 10)}`,
     article.expiresAt && `有效期至: ${article.expiresAt.slice(0, 10)}`,
+    reads > 0 && `🤖 被 AI 读过 ${reads} 次`,
     article.source && `<a href="${escapeHtml(article.source)}" rel="noopener">原文</a>`,
     penName && `<a href="${origin}/u/${encodeURIComponent(penName)}">更多文章</a>`,
   ]
@@ -1672,6 +1690,7 @@ async function serveMarkdown(c: Context<AppEnv>, id: string) {
   }
   // 仅当映射存在（主页可访问）时才在文章里指向主页
   const penName = await verifiedPublicName(c.env.A4A_KV, article.owner)
+  if (!wantsHtml(c)) bumpReads(c, article.id)
   return c.text(toMarkdown(article, origin, penName), 200, {
     'content-type': 'text/markdown; charset=utf-8',
     'cache-control': article.price ? 'private, no-store' : 'public, max-age=60',
