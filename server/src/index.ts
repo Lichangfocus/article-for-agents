@@ -940,6 +940,72 @@ function buildCommands(origin: string, article: Article, penName?: string | null
   }
 }
 
+/** 按视觉宽度折行（CJK 记 1，ASCII 记 0.55），供 SVG 海报排版用 */
+function wrapCjk(text: string, maxUnits: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  let w = 0
+  for (const ch of text) {
+    const cw = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u303f]/.test(ch) ? 1 : 0.55
+    if (w + cw > maxUnits && line) {
+      lines.push(line)
+      line = ''
+      w = 0
+    }
+    line += ch
+    w += cw
+  }
+  if (line) lines.push(line)
+  return lines
+}
+
+function escXml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/** 口令海报：口令文本直接印在图上——读者把海报截图丢给带视觉的 AI，读到口令即可执行。
+ *  比二维码少一步（不用扫），天然适合公众号尾图/朋友圈卡片等内容化传播场景。 */
+function posterSvg(opts: { kind: string; heading: string; command: string; origin: string }): string {
+  const W = 780
+  const PAD = 56
+  const headingLines = wrapCjk(opts.heading, 17)
+  const cmdLines = wrapCjk(opts.command, 23)
+  const font = "-apple-system,'PingFang SC','Microsoft YaHei',sans-serif"
+
+  let y = 78
+  const parts: string[] = []
+  parts.push(`<circle cx="${PAD + 12}" cy="${y - 8}" r="11" fill="#D97757"/>`)
+  parts.push(`<text x="${PAD + 34}" y="${y}" font-family="${font}" font-size="26" font-weight="700" fill="#2D2A24">回响</text>`)
+  parts.push(`<text x="${W - PAD}" y="${y}" font-family="${font}" font-size="15" fill="#8A8272" text-anchor="end">${escXml(opts.kind)}</text>`)
+  y += 34
+  parts.push(`<line x1="${PAD}" y1="${y}" x2="${W - PAD}" y2="${y}" stroke="#E8E3D8"/>`)
+  y += 58
+
+  for (const l of headingLines.slice(0, 3)) {
+    parts.push(`<text x="${PAD}" y="${y}" font-family="${font}" font-size="34" font-weight="700" fill="#2D2A24">${escXml(l)}</text>`)
+    y += 48
+  }
+  y += 4
+  parts.push(`<text x="${PAD}" y="${y}" font-family="${font}" font-size="19" fill="#8A8272">把这张海报发给你的 AI 助手（Claude / 豆包 / Kimi…），它就会照做 👇</text>`)
+  y += 34
+
+  const boxTop = y
+  const lineH = 36
+  const boxH = cmdLines.length * lineH + 44
+  parts.push(`<rect x="${PAD}" y="${boxTop}" width="${W - PAD * 2}" height="${boxH}" rx="14" fill="#FFFFFF" stroke="#D97757" stroke-width="2" stroke-dasharray="7 5"/>`)
+  let ty = boxTop + 44
+  for (const l of cmdLines) {
+    parts.push(`<text x="${PAD + 26}" y="${ty}" font-family="${font}" font-size="21" fill="#2D2A24">${escXml(l)}</text>`)
+    ty += lineH
+  }
+  y = boxTop + boxH + 52
+
+  parts.push(`<text x="${PAD}" y="${y}" font-family="${font}" font-size="16" fill="#8A8272">每一次更新，都有回响 · ${escXml(opts.origin.replace(/^https?:\/\//, ''))}</text>`)
+  const H = y + 44
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#FAF9F5"/>${parts.join('')}</svg>`
+}
+
 function qrSvg(c: Context<AppEnv>, text: string) {
   const svg = renderSVG(text, { blackColor: '#2D2A24', whiteColor: '#fff', border: 2 })
   return c.body(svg, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=3600' })
@@ -951,6 +1017,33 @@ async function loadArticleWithPen(c: Context<AppEnv>, id: string): Promise<{ art
   const profile = await loadProfile(c.env.A4A_KV, article.owner)
   return { article, penName: publicName(profile) }
 }
+
+// 口令海报（SVG）：单篇阅读 / 作者订阅
+app.get('/c/:id/poster.svg', async (c) => {
+  const r = await loadArticleWithPen(c, c.req.param('id'))
+  if (!r) return c.text('not found', 404)
+  const origin = new URL(c.req.url).origin
+  const svg = posterSvg({
+    kind: 'AI 阅读海报',
+    heading: `《${r.article.title}》`,
+    command: readCommand(origin, r.article.id, r.article.title),
+    origin,
+  })
+  return c.body(svg, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=600' })
+})
+
+app.get('/u/:name/poster.svg', async (c) => {
+  const page = await resolveAuthor(c, c.req.param('name'))
+  if (!page) return c.text('not found', 404)
+  const origin = new URL(c.req.url).origin
+  const svg = posterSvg({
+    kind: 'AI 订阅海报',
+    heading: `订阅「${page.name}」`,
+    command: subscribeCommand(origin, page.name),
+    origin,
+  })
+  return c.body(svg, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=600' })
+})
 
 // 单篇口令二维码（内容 = 口令文本，手机扫码可复制，带视觉能力的 agent 识图即得）
 app.get('/c/:id/read.svg', async (c) => {
@@ -1002,6 +1095,7 @@ app.get('/c/:id', async (c) => {
       lines.push('## 📮 订阅口令（持续关注作者）', '', '```', cmds.subscribe, '```', '')
     }
     lines.push(`二维码形态：${origin}/c/${article.id}/read.svg` + (cmds.subscribe ? ` · ${origin}/c/${article.id}/subscribe.svg` : ''), '')
+    lines.push(`海报形态（口令印在图上，发图给 AI 即可执行）：${origin}/c/${article.id}/poster.svg` + (penName ? ` · ${origin}/u/${penName}/poster.svg` : ''), '')
     return c.text(lines.join('\n'), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=60' })
   }
   const block = (title: string, desc: string, text: string, qr: string) => `
@@ -1009,7 +1103,8 @@ app.get('/c/:id', async (c) => {
 <p class="meta">${desc}</p>
 <blockquote id="q-${qr}">${escapeHtml(text)}</blockquote>
 <p><button onclick="navigator.clipboard.writeText(document.getElementById('q-${qr}').textContent).then(()=>this.textContent='✅ 已复制，去粘给你的 AI')" style="padding:.5rem 1.2rem;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">📋 复制口令</button>
-<a href="${origin}/c/${article.id}/${qr}.svg" style="margin-left:.8rem">二维码版</a></p>`
+<a href="${origin}/c/${article.id}/${qr}.svg" style="margin-left:.8rem">二维码版</a>
+<a href="${qr === 'read' ? origin + '/c/' + article.id + '/poster.svg' : origin + '/u/' + penName + '/poster.svg'}" style="margin-left:.8rem">🖼 海报版</a></p>`
   return c.html(
     renderPage(
       `《${article.title}》的分发口令`,

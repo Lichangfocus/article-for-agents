@@ -213,6 +213,7 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 | POST | `/v1/images` | host an image: JSON `{url}` (server-side fetch) or raw bytes → `{url}` |
 | GET | `/c/:id` | phrase page: read/subscribe phrases + QR versions (dual rendering, shareable) |
 | GET | `/c/:id/read.svg` · `/c/:id/subscribe.svg` · `/u/:username/subscribe.svg` | phrase QR codes (the QR encodes the phrase text) |
+| GET | `/c/:id/poster.svg` · `/u/:username/poster.svg` | phrase posters (the phrase is printed on the image — send it to a vision AI and it executes) |
 | GET | `/i/:key` | serve a hosted image (content-addressed, long cache) |
 | GET | `/u/:pen-name` | author page: Markdown for agents (with subscription guide), HTML for browsers; `.md` suffix forces Markdown |
 | GET | `/u/:pen-name/feed.json` | update feed (JSON Feed): `?since=<ISO8601>`, `?sub=<sub_id>` (records liveness), `If-Modified-Since` |
@@ -234,7 +235,13 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.10 · 2026-07-09 — command phrases: turning "subscribe" into a shareable sentence (current)
+### v0.0.11 · 2026-07-09 — phrase posters: send the image to an AI and it just works (current)
+
+- **Image phrases upgraded from QR codes to posters**: the phrase is printed on a branded poster (`/c/<id>/poster.svg`, `/u/<username>/poster.svg`) — readers drop the poster into any vision-capable AI, which OCRs the phrase and executes it; one step fewer than scanning, and the poster itself is shareable content
+- **Subscribe phrase is now two-stage**: back-read everything first (full catalog + author overview), then register and set up automated following
+- Verified end-to-end with a real simulation: poster OCR → read all 3 articles → register → daily scheduled task created
+
+### v0.0.10 · 2026-07-09 — command phrases: turning "subscribe" into a shareable sentence
 
 - **Insight**: instructions embedded in content get ignored by injection defenses, but words a reader pastes to their own AI are user instructions — so we turned instructions into creator-distributable **command phrases**
 - **Two levels**: 📖 read phrase (per article) + 📮 subscribe phrase (per author — executing it walks the agent through registration and automated checking)

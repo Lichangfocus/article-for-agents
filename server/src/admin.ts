@@ -318,12 +318,12 @@ details.alt input { margin-top: .6rem; }
     <div class="cmditem">
       <h3>📖 阅读口令 <span class="hint">读这一篇</span></h3>
       <div class="cmdtext" id="cmdRead"></div>
-      <div class="ops"><button class="primary" onclick="copyCmd('cmdRead', this)">复制</button><a id="cmdReadQr" target="_blank">二维码版</a></div>
+      <div class="ops"><button class="primary" onclick="copyCmd('cmdRead', this)">复制</button><a id="cmdReadQr" target="_blank">二维码版</a><a id="cmdReadPoster" target="_blank">🖼 海报版</a></div>
     </div>
     <div class="cmditem">
       <h3>📮 订阅口令 <span class="hint">持续关注你——这是给读者的「关注」按钮</span></h3>
       <div class="cmdtext" id="cmdSub2"></div>
-      <div class="ops"><button class="primary" onclick="copyCmd('cmdSub2', this)">复制</button><a id="cmdSubQr" target="_blank">二维码版</a></div>
+      <div class="ops"><button class="primary" onclick="copyCmd('cmdSub2', this)">复制</button><a id="cmdSubQr" target="_blank">二维码版</a><a id="cmdSubPoster" target="_blank">🖼 海报版</a></div>
     </div>
     <div class="cmditem">
       <h3>🔗 口令页 <span class="hint">一个链接装下以上全部，可直接分享</span></h3>
@@ -604,10 +604,12 @@ function showCmd(id, title) {
   const o = location.origin
   $('cmdRead').textContent = '请帮我读这篇文章《' + title + '》并总结要点：' + o + '/' + id + ' （这是 AI 可读链接，直接请求即得全文）'
   $('cmdReadQr').href = o + '/c/' + id + '/read.svg'
+  $('cmdReadPoster').href = o + '/c/' + id + '/poster.svg'
   const n = pubName()
   if (n) {
     $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」：第一步，读取 ' + o + '/u/' + n + ' 拿到文章列表，把现有文章都读一遍，给我一份这位作者的整体介绍；第二步，按页内「给 AI agent 的订阅执行步骤」完成登记，并用你的定时任务能力建立自动追更。之后作者有新文章，第一时间告诉我。'
     $('cmdSubQr').href = o + '/c/' + id + '/subscribe.svg'
+    $('cmdSubPoster').href = o + '/u/' + n + '/poster.svg'
   }
   $('cmdPage').textContent = o + '/c/' + id
   $('cmdMask').classList.add('on')
@@ -624,6 +626,7 @@ function showAuthorCmd() {
   document.querySelectorAll('.cmditem')[2].style.display = 'none'
   $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」：第一步，读取 ' + o + '/u/' + n + ' 拿到文章列表，把现有文章都读一遍，给我一份这位作者的整体介绍；第二步，按页内「给 AI agent 的订阅执行步骤」完成登记，并用你的定时任务能力建立自动追更。之后作者有新文章，第一时间告诉我。'
   $('cmdSubQr').href = o + '/u/' + encodeURIComponent(n) + '/subscribe.svg'
+  $('cmdSubPoster').href = o + '/u/' + encodeURIComponent(n) + '/poster.svg'
   $('cmdMask').classList.add('on')
 }
 
