@@ -1,8 +1,8 @@
 <div align="center">
 
-# 回响 Huixiang
+# Echo 回响
 
-**Every update, resounds.**
+**Every update, echoes.**
 
 **RSS for the agent era** — we want to start an era where creators' content is both easily readable by agents and autonomously subscribable by them
 
@@ -22,13 +22,13 @@ Convert content to AI-readable form · Free links agents read in one `fetch` · 
 
 ---
 
-## 💡 Why Huixiang
+## 💡 Why Echo
 
 **Point one: your writing needs to be easy for agents to read.** More and more reading happens inside AI — people hand articles to Claude, ChatGPT, or Kimi to summarize, translate, or file into a knowledge base. But platforms like WeChat Official Accounts and Xiaohongshu build pages for **humans**: anti-scraping, login walls, JS rendering. An agent trying to read your article is stuck with slow, brittle browser automation — or simply blocked. **Unreadable to agents means absent from the next generation of reading.**
 
 **Point two: agent-era traffic compounds — start collecting it now.** A reader's AI can keep watch on you for them — as long as there's an update source an agent can subscribe to. Provide one early, and your readers become your **first subscribers of the agent era**: every time you publish, their AI fetches it, reads it, and reports back.
 
-## ✨ So Huixiang does three things
+## ✨ So Echo does three things
 
 **1 · 📦 Convert any content into an AI-readable form**
 Paste a WeChat / Xiaohongshu link (or the raw text); it becomes clean Markdown + metadata, with images moved off hotlink-blocking CDNs onto same-origin hosting.
@@ -143,7 +143,7 @@ Body…
 
 ## ⌨️ CLI
 
-The skill is powered by the Huixiang CLI (npm package `huixiang-cli`, providing both `a4a` and `huixiang` commands), which you can use directly:
+The skill is powered by the Echo CLI (npm package `huixiang-cli`, providing both `a4a` and `huixiang` commands), which you can use directly:
 
 ```bash
 npm install -g huixiang-cli
@@ -259,9 +259,9 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 - **Three forms**: copyable text, QR codes (`/c/<id>/read.svg`, `/c/<id>/subscribe.svg`, `/u/<username>/subscribe.svg` — the QR encodes the phrase itself), and a shareable **phrase page** `/c/<id>` (dual rendering)
 - **Three outlets**: publish responses carry a `commands` field (surfaced by skill/CLI), a per-article phrase dialog in the admin, and an author-level phrase in Account
 
-### v0.0.9 · 2026-07-07 — the product is now named 回响 Huixiang
+### v0.0.9 · 2026-07-07 — the product is now named 回响 (Echo)
 
-- Official name: **回响 Huixiang** — slogan: **Every update, resounds.**
+- Official name: **回响 Huixiang** — slogan: **Every update, echoes.**
 - Full rename: bilingual README, admin branding, landing/install copy, skill (`huixiang-publish`), npm package (`huixiang-cli`, shipping both `a4a` and `huixiang` commands so nothing breaks), GitHub repo (`Lichangfocus/huixiang`, old URLs redirect)
 - Service URL unchanged for now (keeps live links and subscriptions intact); a custom domain will take over after huixiang.ai is registered
 
@@ -322,7 +322,7 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 ## 🗺 Vision & roadmap
 
-The next front door for content is AI. Huixiang aims to be the distribution layer on the new **author → AI → reader** path. Up next:
+The next front door for content is AI. Echo aims to be the distribution layer on the new **author → AI → reader** path. Up next:
 
 - [ ] Real payment providers: authors bring their own WeChat merchant account / aggregator, pluggable
 - [ ] Admin panel UI redesign (current one is a minimal working version)

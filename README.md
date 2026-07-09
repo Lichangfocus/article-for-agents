@@ -1,10 +1,10 @@
 <div align="center">
 
-# 回响 · huixiang
+# 回响 Echo
 
 **每一次更新，都有回响。**
 
-**Agent 时代的 RSS** —— 我们想开启这样一个时代：创作者的内容既能被 agent 方便地读到，也能被 agent 自主订阅
+**Agent 时代的 RSS** —— 我们想开启这样一个时代：创作者的内容既能被 agent 方便地读到，也能被 agent 自主订阅（英文名 Echo，技术标识 huixiang）
 
 内容转 AI 易读格式 · 免费短链一次 `fetch` 即读 · agent 自主订阅，你一更新它第一时间知道
 
