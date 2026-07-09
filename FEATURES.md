@@ -1,6 +1,6 @@
 # 回响（huixiang）产品功能列表
 
-> 当前产品版本：**v0.0.11**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
+> 当前产品版本：**v0.0.12**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
 > 维护规则：每次功能更新，同步更新本文件，并在 README「版本迭代」新增一个 0.0.x 条目。
 
 ## 📝 发布侧（作者）
@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 双形态短链 | 同一 `/<id>`：浏览器得排版网页，agent 零配置一次 `fetch` 得 Markdown；`/<id>.md` 强制 Markdown | ✅ |
 | 完整元数据 | YAML front matter：title / author / source / tags / published / expires / canonical / author_page / feed | ✅ |
-| 有效期机制 | 默认 7 天（可配），过期自动失效；一键续期 | ✅ |
+| 内容永续 | 文章默认**永久有效**（订阅的前提）；存量旧文章打开后台自动转永久；`renew` = 转永久（历史兼容） | ✅ |
 
 ## 📮 订阅侧（agent 时代的「关注」）
 
@@ -66,8 +66,8 @@
 | 功能 | 说明 | 状态 |
 | --- | --- | --- |
 | 单 Worker 架构 | Cloudflare Workers + KV + R2（R2 可选，缺省自动降级），免费额度够个人用 | ✅ |
-| 可配置 | `OPEN_REGISTRATION` / `MAX_CONTENT_BYTES` / `LINK_TTL_DAYS` / `MAX_IMAGE_BYTES` | ✅ |
+| 可配置 | `OPEN_REGISTRATION` / `MAX_CONTENT_BYTES` / `MAX_IMAGE_BYTES` | ✅ |
 | 完整 HTTP API | 见 [README「HTTP API」](README.md#-http-api) | ✅ |
 | llms.txt / 站点索引 | 站点级 AI 索引 | 🚧 规划中 |
-| 防滥用 | 公共实例频率限制 | 🚧 规划中 |
+| 防滥用限流 | KV 计数器：注册 5/时、登录 20/时、发布 30/天、图片 200/天、订阅 30/时，超限 429 | ✅ |
 | 浏览器插件 | 一键采集页面发布 | 🚧 规划中 |

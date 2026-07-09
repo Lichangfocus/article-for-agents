@@ -83,7 +83,7 @@ The skill walks you through the standard flow:
 - The username is globally unique and doubles as your author page `/u/<username>`
 - The success page gives you a **binding instruction** to paste to your AI (the token is an agent credential — recover it anytime by logging in with email)
 
-Every publish gives you a **short link** (readable by any AI, a web page in browsers), a **QR code**, and a **7-day TTL** (renewable in one click).
+Every publish gives you a **short link** (readable by any AI, a web page in browsers), a **QR code**, and **permanent availability**.
 
 ## 📮 Author pages & AI subscriptions
 
@@ -131,7 +131,6 @@ title: "Article title"
 author: "Pen name"
 source: "https://mp.weixin.qq.com/s/..."
 published: 2026-07-06T03:32:13.449Z
-expires: 2026-07-13T03:32:13.449Z
 canonical: https://<host>/<id>
 author_page: https://<host>/u/<pen-name>
 feed: https://<host>/u/<pen-name>/feed.json
@@ -209,7 +208,7 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 | POST | `/v1/articles` | publish → `{id, url, expiresAt}` |
 | GET | `/v1/articles` | list own articles |
 | GET / PUT / DELETE | `/v1/articles/:id` | detail / update / delete |
-| POST | `/v1/articles/:id/renew` | renew |
+| POST | `/v1/articles/:id/renew` | convert an old expiring article to permanent (legacy) |
 | POST | `/v1/images` | host an image: JSON `{url}` (server-side fetch) or raw bytes → `{url}` |
 | GET | `/c/:id` | phrase page: read/subscribe phrases + QR versions (dual rendering, shareable) |
 | GET | `/c/:id/read.svg` · `/c/:id/subscribe.svg` · `/u/:username/subscribe.svg` | phrase QR codes (the QR encodes the phrase text) |
@@ -235,7 +234,13 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.11 · 2026-07-09 — phrase posters: send the image to an AI and it just works (current)
+### v0.0.12 · 2026-07-09 — permanent content + simple rate limiting (current)
+
+- **Articles are now permanent by default**: subscriptions only make sense if content persists — the 7-day TTL was a relic of the anonymous era; existing articles auto-convert next time the author opens the admin / runs list; `renew` now means "convert an old article to permanent"
+- **Simple rate limits**: register 5/h, login 20/h, publish 30/day, images 200/day, subscription registration 30/h (KV counters, 429 on excess)
+- Copy updated everywhere: no more expiry/renewal; the admin shows "permanent"
+
+### v0.0.11 · 2026-07-09 — phrase posters: send the image to an AI and it just works
 
 - **Image phrases upgraded from QR codes to posters**: the phrase is printed on a branded poster (`/c/<id>/poster.svg`, `/u/<username>/poster.svg`) — readers drop the poster into any vision-capable AI, which OCRs the phrase and executes it; one step fewer than scanning, and the poster itself is shareable content
 - **Subscribe phrase is now two-stage**: back-read everything first (full catalog + author overview), then register and set up automated following
@@ -317,7 +322,6 @@ The next front door for content is AI. Huixiang aims to be the distribution laye
 - [ ] Admin panel UI redesign (current one is a minimal working version)
 - [ ] Browser extension for one-click capture
 - [ ] `llms.txt` and site-level indexing
-- [ ] Abuse protection for public instances (rate limiting)
 
 ## 🧑‍💻 Local development
 

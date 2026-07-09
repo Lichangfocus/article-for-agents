@@ -89,7 +89,7 @@ skill 会引导你完成标准注册流程：
 
 - **短链接**：发给任何 AI 都能直接读全文，浏览器打开是网页
 - **二维码**：可直接放进公众号文章
-- **有效期 7 天**：过期自动失效，后台一键续期
+- **永久有效**：链接不过期，订阅你的 AI 任何时候都能读到
 
 ## 📮 作者主页与 AI 订阅
 
@@ -119,7 +119,7 @@ skill 会引导你完成标准注册流程：
 
 打开 [/admin](https://article-for-agents.lichangin.workers.dev/admin) 邮箱登录（老 token 账号可用 token 登录入口），SaaS 式管理台，四个视图：
 
-- **内容链接**：搜索、查看/复制、续期（重置 7 天）、定价、删除；空态有示例数据
+- **内容链接**：搜索、查看/复制、定价、删除（永久有效）；空态有示例数据
 - **订阅者**：总数与近 7 天活跃、每个订阅 agent 的名字 / push·poll 模式 / 最近活跃
 - **账号管理**：用户名（唯一，即主页地址）、邮箱、文章署名（可改）、token 说明
 - **高级设置**：订阅引导配置（推送优先开关、轮询频率建议）
@@ -145,7 +145,6 @@ title: "文章标题"
 author: "笔名"
 source: "https://mp.weixin.qq.com/s/..."
 published: 2026-07-06T03:32:13.449Z
-expires: 2026-07-13T03:32:13.449Z
 canonical: https://<host>/<id>
 author_page: https://<host>/u/<笔名>
 feed: https://<host>/u/<笔名>/feed.json
@@ -172,7 +171,6 @@ a4a grab "<链接>"                # 只抓取转 Markdown 输出，不发布
 a4a publish 文章.md --price 3    # 付费文章（AI 访问返回 402 + 支付二维码）
 a4a list                        # 列出我的文章（含有效期）
 a4a update <id> 新版本.md        # 更新（URL 不变，有效期重置）
-a4a renew <id>                  # 续期 7 天
 a4a delete <id>                 # 删除
 a4a home                        # 查看作者主页链接（发给 AI 可订阅更新）
 a4a token                       # 查看 token 和后台地址
@@ -205,7 +203,6 @@ npx wrangler deploy
 | --- | --- | --- |
 | `OPEN_REGISTRATION` | `true` | 是否允许自助开户 |
 | `MAX_CONTENT_BYTES` | `1048576` | 单篇正文大小上限 |
-| `LINK_TTL_DAYS` | `7` | 链接有效期（天） |
 | `MAX_IMAGE_BYTES` | `5242880` | 单张托管图片大小上限 |
 
 用户指向你的实例：`a4a login <token> --endpoint https://你的域名`。
@@ -223,7 +220,7 @@ npx wrangler deploy
 | POST | `/v1/articles` | 发布 → `{id, url, expiresAt}` |
 | GET | `/v1/articles` | 列出自己的文章 |
 | GET / PUT / DELETE | `/v1/articles/:id` | 详情 / 更新 / 删除 |
-| POST | `/v1/articles/:id/renew` | 续期 |
+| POST | `/v1/articles/:id/renew` | 把带有效期的旧文章转为永久（历史兼容） |
 | POST | `/v1/images` | 托管图片：JSON `{url}`（服务端代抓）或图片二进制直传 → `{url}` |
 | GET | `/c/:id` | 口令页：阅读/订阅口令 + 二维码版（双形态渲染，可直接分享） |
 | GET | `/c/:id/read.svg` · `/c/:id/subscribe.svg` · `/u/:用户名/subscribe.svg` | 口令二维码（内容即口令文本） |
@@ -249,7 +246,13 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.11 · 2026-07-09 —— 口令海报：发图给 AI 即可执行（当前）
+### v0.0.12 · 2026-07-09 —— 内容永续 + 简单限流（当前）
+
+- **文章默认永久有效**：订阅的前提是内容一直在——7 天 TTL 是匿名时代的遗产，注册制下正式移除；存量文章在作者下次打开后台/list 时自动转永久；`renew` 语义改为「把旧文章转永久」（历史兼容）
+- **简单限流**：注册 5 次/小时、登录 20 次/小时、发布 30 篇/天、图片 200 张/天、订阅登记 30 次/小时（KV 计数器，超限 429）——公开传播前的保险丝
+- 全端文案同步：不再有「有效期/续期」，后台显示「永久」
+
+### v0.0.11 · 2026-07-09 —— 口令海报：发图给 AI 即可执行
 
 - **图片口令从二维码升级为海报**：口令文本直接印在品牌海报上（`/c/<id>/poster.svg` 阅读海报、`/u/<用户名>/poster.svg` 订阅海报）——读者把海报丢给带视觉的 AI，OCR 出口令即执行，比扫码少一步，且海报本身就是内容（公众号尾图/朋友圈卡片）
 - **订阅口令升级为两段式**：先全量补课（读作者现有全部文章、给整体介绍），再登记订阅 + 建定时追更
@@ -331,7 +334,6 @@ npx wrangler deploy
 - [ ] 后台 `/admin` UI 重设计（当前为最简可用版）
 - [ ] 浏览器插件一键采集
 - [ ] `llms.txt` 与站点级索引
-- [ ] 公共实例防滥用（频率限制）
 
 ## 🧑‍💻 本地开发
 

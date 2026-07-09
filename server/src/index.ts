@@ -12,7 +12,6 @@ type Env = {
   A4A_R2?: R2Bucket
   OPEN_REGISTRATION: string
   MAX_CONTENT_BYTES: string
-  LINK_TTL_DAYS: string
   MAX_IMAGE_BYTES?: string
 }
 
@@ -32,7 +31,8 @@ type Article = {
   price?: number
   createdAt: string
   updatedAt: string
-  expiresAt: string
+  /** v0.0.12 起默认永久；仅存量旧文章可能带此字段（懒迁移中清除） */
+  expiresAt?: string
   owner: string
 }
 
@@ -41,7 +41,7 @@ type IndexEntry = {
   title: string
   createdAt: string
   updatedAt: string
-  expiresAt: string
+  expiresAt?: string
   price?: number
 }
 
@@ -87,9 +87,23 @@ async function nameKey(authorName: string) {
   return `name:${await sha256hex(authorName.trim())}`
 }
 
-function ttlSeconds(env: Env): number {
-  const days = parseInt(env.LINK_TTL_DAYS || '7', 10)
-  return days * 86400
+/** 简单限流：KV 计数器按时间窗取整。超限返回 429 响应；否则计数 +1 并返回 null */
+async function rateLimit(
+  c: Context<AppEnv>,
+  action: string,
+  limit: number,
+  windowSecs: number,
+  who?: string
+): Promise<Response | null> {
+  const id = who || c.req.header('cf-connecting-ip') || 'unknown'
+  const slot = Math.floor(Date.now() / 1000 / windowSecs)
+  const k = `rl:${action}:${id}:${slot}`
+  const cur = parseInt((await c.env.A4A_KV.get(k)) || '0', 10)
+  if (cur >= limit) {
+    return json(c, 429, { error: 'rate_limited', message: '请求太频繁，请稍后再试。' })
+  }
+  c.executionCtx.waitUntil(c.env.A4A_KV.put(k, String(cur + 1), { expirationTtl: windowSecs + 60 }))
+  return null
 }
 
 function json(c: Context, status: number, body: unknown) {
@@ -139,7 +153,7 @@ function toMarkdown(a: Article, origin: string, penName?: string | null): string
   if (a.tags?.length) lines.push(`tags: [${a.tags.map(yamlEscape).join(', ')}]`)
   if (a.lang) lines.push(`lang: ${yamlEscape(a.lang)}`)
   lines.push(`published: ${a.createdAt}`)
-  lines.push(`expires: ${a.expiresAt}`)
+  if (a.expiresAt) lines.push(`expires: ${a.expiresAt}`)
   lines.push(`canonical: ${origin}/${a.id}`)
   let footer = ''
   let hint = ''
@@ -210,6 +224,8 @@ app.post('/v1/keys', async (c) => {
 })
 
 app.post('/v1/register', async (c) => {
+  const rl = await rateLimit(c, 'reg', 5, 3600)
+  if (rl) return rl
   if (c.env.OPEN_REGISTRATION !== 'true') {
     return json(c, 403, { error: 'registration_closed', message: 'This instance does not allow self-registration.' })
   }
@@ -265,6 +281,8 @@ app.post('/v1/register', async (c) => {
 })
 
 app.post('/v1/login', async (c) => {
+  const rl = await rateLimit(c, 'login', 20, 3600)
+  if (rl) return rl
   let body: { email?: unknown; password?: unknown }
   try {
     body = await c.req.json()
@@ -515,7 +533,8 @@ app.post('/v1/articles', async (c) => {
   if (err) return json(c, 400, { error: 'invalid_input', message: err })
 
   const owner = c.get('owner')
-  const ttl = ttlSeconds(c.env)
+  const rl = await rateLimit(c, 'pub', 30, 86400, owner)
+  if (rl) return rl
   const now = new Date()
   // 没写作者时用账号的显示笔名
   let author = body.author as string | undefined
@@ -534,10 +553,10 @@ app.post('/v1/articles', async (c) => {
     price,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
-    expiresAt: new Date(now.getTime() + ttl * 1000).toISOString(),
     owner,
   }
-  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article), { expirationTtl: ttl })
+  // 内容永续：不设 TTL——订阅的前提是内容一直在
+  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article))
   const idx = await loadIndex(c.env.A4A_KV, owner)
   const entry: IndexEntry = {
     id: article.id,
@@ -569,10 +588,26 @@ app.post('/v1/articles', async (c) => {
 app.get('/v1/articles', async (c) => {
   const owner = c.get('owner')
   const idx = await loadIndex(c.env.A4A_KV, owner)
-  // KV 会自动清掉过期正文；这里顺手把索引里的过期条目也清掉
-  const now = Date.now()
-  const live = idx.filter((e) => !e.expiresAt || Date.parse(e.expiresAt) > now)
-  if (live.length !== idx.length) await saveIndex(c.env.A4A_KV, owner, live)
+  // v0.0.12 起文章默认永久：带有效期的存量文章在这里就地转为永久（正文已被 KV 清除的除外）
+  let changed = false
+  const live: IndexEntry[] = []
+  for (const e of idx) {
+    if (!e.expiresAt) {
+      live.push(e)
+      continue
+    }
+    const article = await c.env.A4A_KV.get<Article>(articleKey(e.id), 'json')
+    if (!article) {
+      changed = true
+      continue
+    }
+    article.expiresAt = undefined
+    await c.env.A4A_KV.put(articleKey(e.id), JSON.stringify(article))
+    e.expiresAt = undefined
+    changed = true
+    live.push(e)
+  }
+  if (changed) await saveIndex(c.env.A4A_KV, owner, live)
   const origin = new URL(c.req.url).origin
   return json(c, 200, {
     articles: live.map((e) => ({ ...e, url: `${origin}/${e.id}` })),
@@ -612,11 +647,10 @@ app.put('/v1/articles/:id', async (c) => {
   }
   if (Array.isArray(body.tags)) article.tags = body.tags as string[]
   if (typeof body.price === 'number') article.price = body.price > 0 ? Math.round(body.price * 100) / 100 : undefined
-  const ttl = ttlSeconds(c.env)
   article.updatedAt = new Date().toISOString()
-  article.expiresAt = new Date(Date.now() + ttl * 1000).toISOString()
+  article.expiresAt = undefined
 
-  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article), { expirationTtl: ttl })
+  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article))
   const idx = await loadIndex(c.env.A4A_KV, article.owner)
   const entry = idx.find((e) => e.id === article.id)
   if (entry) {
@@ -635,20 +669,19 @@ app.put('/v1/articles/:id', async (c) => {
   return json(c, 200, { id: article.id, updatedAt: article.updatedAt, expiresAt: article.expiresAt, price: article.price ?? 0 })
 })
 
-// 续期：不改内容，重置有效期
+// 历史兼容：renew 现在的语义 = 把带有效期的旧文章转为永久
 app.post('/v1/articles/:id/renew', async (c) => {
   const article = await loadOwnArticle(c)
   if (!article) return json(c, 404, { error: 'not_found', message: 'No such article under your token' })
-  const ttl = ttlSeconds(c.env)
-  article.expiresAt = new Date(Date.now() + ttl * 1000).toISOString()
-  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article), { expirationTtl: ttl })
+  article.expiresAt = undefined
+  await c.env.A4A_KV.put(articleKey(article.id), JSON.stringify(article))
   const idx = await loadIndex(c.env.A4A_KV, article.owner)
   const entry = idx.find((e) => e.id === article.id)
   if (entry) {
-    entry.expiresAt = article.expiresAt
+    entry.expiresAt = undefined
     await saveIndex(c.env.A4A_KV, article.owner, idx)
   }
-  return json(c, 200, { id: article.id, expiresAt: article.expiresAt })
+  return json(c, 200, { id: article.id, expiresAt: null, permanent: true })
 })
 
 app.delete('/v1/articles/:id', async (c) => {
@@ -696,6 +729,8 @@ async function sha256hexBytes(bytes: Uint8Array): Promise<string> {
 
 // 两种模式：JSON {url}（服务端代抓，省客户端流量）或图片二进制直传（上游封锁数据中心 IP 时的兜底）
 app.post('/v1/images', requireAuth, async (c) => {
+  const rl = await rateLimit(c, 'img', 200, 86400, c.get('owner'))
+  if (rl) return rl
   if (!c.env.A4A_R2) {
     return json(c, 501, { error: 'images_disabled', message: 'This instance has no R2 bucket configured (A4A_R2).' })
   }
@@ -800,6 +835,8 @@ async function touchSubscription(c: Context<AppEnv>, owner: string, subId: strin
 }
 
 app.post('/v1/subscriptions', async (c) => {
+  const rl = await rateLimit(c, 'sub', 30, 3600)
+  if (rl) return rl
   let body: { author?: unknown; agent?: unknown; webhook?: unknown }
   try {
     body = await c.req.json()
@@ -1296,7 +1333,7 @@ app.get('/u/:name/feed.json', async (c) => {
         title: e.title,
         date_published: e.createdAt,
         date_modified: e.updatedAt,
-        _huixiang: { expires: e.expiresAt, price: e.price ?? 0 },
+        _huixiang: { ...(e.expiresAt ? { expires: e.expiresAt } : {}), price: e.price ?? 0 },
       })),
     },
     200,

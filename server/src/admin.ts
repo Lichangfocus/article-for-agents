@@ -242,7 +242,7 @@ details.alt input { margin-top: .6rem; }
     <!-- 视图：内容链接 -->
     <section class="view on" id="view-links">
       <div class="pagehead">
-        <div><h1>内容链接</h1><p>默认有效期 7 天，「续期」重置为 7 天 · 把文章丢给你的 AI 即可新增</p></div>
+        <div><h1>内容链接</h1><p>链接永久有效 · 把文章丢给你的 AI 即可新增</p></div>
       </div>
       <div class="card">
         <div class="toolbar">
@@ -250,7 +250,7 @@ details.alt input { margin-top: .6rem; }
           <span class="hint" id="countHint"></span>
         </div>
         <table>
-          <thead><tr><th>标题</th><th>链接</th><th>价格</th><th>发布</th><th>有效期至</th><th style="text-align:right">操作</th></tr></thead>
+          <thead><tr><th>标题</th><th>链接</th><th>价格</th><th>发布</th><th>有效期</th><th style="text-align:right">操作</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
         <div id="demoNote" class="demo-note" style="display:none">↑ 以上为示例数据。把文章原文或公众号/小红书链接丢给你的 AI，说「把这篇转成在线链接」，第一条真实链接就会出现在这里。</div>
@@ -505,7 +505,7 @@ function articleRow(a, isDemo) {
   const soon = Date.now() + 2 * 86400e3
   const tr = document.createElement('tr')
   if (isDemo) tr.className = 'demo'
-  const expCls = !isDemo && Date.parse(a.expiresAt) < soon ? 'expiring' : ''
+  const expCls = !isDemo && a.expiresAt && Date.parse(a.expiresAt) < soon ? 'expiring' : ''
   const actions = isDemo
     ? '<button disabled>查看</button> <button disabled>复制</button> <button disabled>设置</button>'
     : '<button onclick="window.open(\\'/' + a.id + '\\', \\'_blank\\')">查看</button> ' +
@@ -513,7 +513,6 @@ function articleRow(a, isDemo) {
       '<button onclick="showCmd(\\'' + a.id + '\\', \\'' + esc(a.title).replace(/'/g, '') + '\\')">口令</button> ' +
       '<details class="dd"><summary>设置 ▾</summary><div class="ddmenu">' +
         '<button onclick="setPrice(\\'' + a.id + '\\',' + (a.price || 0) + ')">定价</button>' +
-        '<button onclick="renew(\\'' + a.id + '\\')">续期 7 天</button>' +
         '<button class="danger" onclick="del(\\'' + a.id + '\\')">删除</button>' +
       '</div></details>'
   tr.innerHTML =
@@ -521,7 +520,7 @@ function articleRow(a, isDemo) {
     '<td><a href="/' + a.id + '" target="_blank">/' + a.id + '</a></td>' +
     '<td>' + (a.price ? '<span class="pill paid">¥' + a.price.toFixed(2) + '</span>' : '<span class="pill">免费</span>') + '</td>' +
     '<td class="hint">' + a.createdAt.slice(0, 10) + '</td>' +
-    '<td class="' + expCls + '">' + (a.expiresAt || '—').slice(0, 10) + '</td>' +
+    '<td class="' + expCls + '">' + (a.expiresAt ? a.expiresAt.slice(0, 10) : '永久') + '</td>' +
     '<td class="row-actions">' + actions + '</td>'
   return tr
 }
@@ -538,8 +537,8 @@ function renderRows() {
     $('countHint').textContent = '0 条链接'
     const day = 86400e3
     const demo = [
-      { id: 'AbC12xYz', title: '为什么你的下一个读者是一个 AI', price: 0, createdAt: new Date(Date.now() - day).toISOString(), expiresAt: new Date(Date.now() + 6 * day).toISOString() },
-      { id: 'Qw34ErTy', title: '给 AI 读的文章，应该怎么写？三条实践笔记', price: 3, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * day).toISOString() },
+      { id: 'AbC12xYz', title: '为什么你的下一个读者是一个 AI', price: 0, createdAt: new Date(Date.now() - day).toISOString() },
+      { id: 'Qw34ErTy', title: '给 AI 读的文章，应该怎么写？三条实践笔记', price: 3, createdAt: new Date().toISOString() },
     ]
     for (const a of demo) rows.appendChild(articleRow(a, true))
     return
@@ -574,11 +573,6 @@ async function setPrice(id, cur) {
   if (isNaN(price) || price < 0) { flash('价格无效'); return }
   try { await api('PUT', '/v1/articles/' + id, { price }); flash(price > 0 ? '已定价 ¥' + price.toFixed(2) : '已设为免费'); refresh() }
   catch (e) { flash('定价失败: ' + e.message) }
-}
-
-async function renew(id) {
-  try { const r = await api('POST', '/v1/articles/' + id + '/renew'); flash('已续期至 ' + r.expiresAt.slice(0, 10)); refresh() }
-  catch (e) { flash('续期失败: ' + e.message) }
 }
 
 async function del(id) {
