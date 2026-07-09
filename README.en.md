@@ -234,7 +234,13 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.12 · 2026-07-09 — permanent content + simple rate limiting (current)
+### v0.0.13 · 2026-07-09 — read echoes: authors finally see how many times AI has read them (current)
+
+- Every agent-mode read (200) bumps a per-article counter — "every update resounds" now has a visible number
+- New **🤖 reads** column in the admin links view; article pages show "read by AI N times" (social proof)
+- Browser views don't count (this counter is for AI); CDN cache hits don't count (conservative undercount)
+
+### v0.0.12 · 2026-07-09 — permanent content + simple rate limiting
 
 - **Articles are now permanent by default**: subscriptions only make sense if content persists — the 7-day TTL was a relic of the anonymous era; existing articles auto-convert next time the author opens the admin / runs list; `renew` now means "convert an old article to permanent"
 - **Simple rate limits**: register 5/h, login 20/h, publish 30/day, images 200/day, subscription registration 30/h (KV counters, 429 on excess)

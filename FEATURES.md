@@ -1,6 +1,6 @@
 # 回响（huixiang）产品功能列表
 
-> 当前产品版本：**v0.0.12**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
+> 当前产品版本：**v0.0.13**（版本历史见 [README「版本迭代」](README.md#-版本迭代)）
 > 维护规则：每次功能更新，同步更新本文件，并在 README「版本迭代」新增一个 0.0.x 条目。
 
 ## 📝 发布侧（作者）
@@ -21,6 +21,7 @@
 | --- | --- | --- |
 | 双形态短链 | 同一 `/<id>`：浏览器得排版网页，agent 零配置一次 `fetch` 得 Markdown；`/<id>.md` 强制 Markdown | ✅ |
 | 完整元数据 | YAML front matter：title / author / source / tags / published / expires / canonical / author_page / feed | ✅ |
+| 阅读回响计数 | 每次被 AI 读取计数 +1；后台「🤖 被读」列、文章页「被 AI 读过 N 次」社交证明；浏览器阅读与 CDN 缓存命中不计 | ✅ |
 | 内容永续 | 文章默认**永久有效**（订阅的前提）；存量旧文章打开后台自动转永久；`renew` = 转永久（历史兼容） | ✅ |
 
 ## 📮 订阅侧（agent 时代的「关注」）
