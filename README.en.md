@@ -261,7 +261,7 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 ### v0.0.9 · 2026-07-07 — the product is now named 回响 (Echo)
 
-- Official name: **回响 Huixiang** — slogan: **Every update, echoes.**
+- Official name: **回响** (English: **Echo**, tech handle `huixiang`) — slogan: **Every update, echoes.**
 - Full rename: bilingual README, admin branding, landing/install copy, skill (`huixiang-publish`), npm package (`huixiang-cli`, shipping both `a4a` and `huixiang` commands so nothing breaks), GitHub repo (`Lichangfocus/huixiang`, old URLs redirect)
 - Service URL unchanged for now (keeps live links and subscriptions intact); a custom domain will take over after huixiang.ai is registered
 
