@@ -211,6 +211,8 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 | GET / PUT / DELETE | `/v1/articles/:id` | detail / update / delete |
 | POST | `/v1/articles/:id/renew` | renew |
 | POST | `/v1/images` | host an image: JSON `{url}` (server-side fetch) or raw bytes → `{url}` |
+| GET | `/c/:id` | phrase page: read/subscribe phrases + QR versions (dual rendering, shareable) |
+| GET | `/c/:id/read.svg` · `/c/:id/subscribe.svg` · `/u/:username/subscribe.svg` | phrase QR codes (the QR encodes the phrase text) |
 | GET | `/i/:key` | serve a hosted image (content-addressed, long cache) |
 | GET | `/u/:pen-name` | author page: Markdown for agents (with subscription guide), HTML for browsers; `.md` suffix forces Markdown |
 | GET | `/u/:pen-name/feed.json` | update feed (JSON Feed): `?since=<ISO8601>`, `?sub=<sub_id>` (records liveness), `If-Modified-Since` |
@@ -232,7 +234,14 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.9 · 2026-07-07 — the product is now named 回响 Huixiang (current)
+### v0.0.10 · 2026-07-09 — command phrases: turning "subscribe" into a shareable sentence (current)
+
+- **Insight**: instructions embedded in content get ignored by injection defenses, but words a reader pastes to their own AI are user instructions — so we turned instructions into creator-distributable **command phrases**
+- **Two levels**: 📖 read phrase (per article) + 📮 subscribe phrase (per author — executing it walks the agent through registration and automated checking)
+- **Three forms**: copyable text, QR codes (`/c/<id>/read.svg`, `/c/<id>/subscribe.svg`, `/u/<username>/subscribe.svg` — the QR encodes the phrase itself), and a shareable **phrase page** `/c/<id>` (dual rendering)
+- **Three outlets**: publish responses carry a `commands` field (surfaced by skill/CLI), a per-article phrase dialog in the admin, and an author-level phrase in Account
+
+### v0.0.9 · 2026-07-07 — the product is now named 回响 Huixiang
 
 - Official name: **回响 Huixiang** — slogan: **Every update, resounds.**
 - Full rename: bilingual README, admin branding, landing/install copy, skill (`huixiang-publish`), npm package (`huixiang-cli`, shipping both `a4a` and `huixiang` commands so nothing breaks), GitHub repo (`Lichangfocus/huixiang`, old URLs redirect)

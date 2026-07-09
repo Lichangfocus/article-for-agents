@@ -225,6 +225,8 @@ npx wrangler deploy
 | GET / PUT / DELETE | `/v1/articles/:id` | 详情 / 更新 / 删除 |
 | POST | `/v1/articles/:id/renew` | 续期 |
 | POST | `/v1/images` | 托管图片：JSON `{url}`（服务端代抓）或图片二进制直传 → `{url}` |
+| GET | `/c/:id` | 口令页：阅读/订阅口令 + 二维码版（双形态渲染，可直接分享） |
+| GET | `/c/:id/read.svg` · `/c/:id/subscribe.svg` · `/u/:用户名/subscribe.svg` | 口令二维码（内容即口令文本） |
 | GET | `/i/:key` | 读取托管图片（内容寻址，长缓存） |
 | GET | `/u/:笔名` | 作者主页：agent 得 Markdown（含订阅指引），浏览器得 HTML；`.md` 后缀强制 Markdown |
 | GET | `/u/:笔名/feed.json` | 订阅源（JSON Feed）：支持 `?since=<ISO8601>`、`?sub=<sub_id>`（记录活跃）与 `If-Modified-Since` |
@@ -246,7 +248,14 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.9 · 2026-07-07 —— 品牌定名「回响」（当前）
+### v0.0.10 · 2026-07-09 —— 分发口令：把「订阅」变成一句可传播的话（当前）
+
+- **产品洞察**：写进内容里的指令会被 AI 平台的注入防护无视，但「读者亲手粘给自己 AI 的话」是用户指令、必然执行——所以把指令做成创作者可分发的**口令**
+- **两级口令**：📖 阅读口令（单篇）+ 📮 订阅口令（作者级，执行即引导 agent 登记订阅、建立自动检查）
+- **三种形态**：文本一键复制、二维码（`/c/<id>/read.svg`、`/c/<id>/subscribe.svg`、`/u/<用户名>/subscribe.svg`，内容即口令文本）、可分享**口令页** `/c/<id>`（双形态渲染）
+- **三个出口**：发布响应带 `commands` 字段（skill/CLI 直接展示给创作者）、后台每篇文章「口令」弹层、账号视图的作者订阅口令
+
+### v0.0.9 · 2026-07-07 —— 品牌定名「回响」
 
 - 产品正式定名 **回响（huixiang）**，slogan：**每一次更新，都有回响。**
 - 全量更名：README 双语、后台品牌位、landing/安装指令、skill（`huixiang-publish`）、npm 包（`huixiang-cli`，同时提供 `a4a` 与 `huixiang` 命令，老用户无感）、GitHub 仓库（`Lichangfocus/huixiang`，旧地址自动重定向）

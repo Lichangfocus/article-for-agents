@@ -125,6 +125,16 @@ details.alt input { margin-top: .6rem; }
 .steps p { margin: .25rem 0; font-size: .9rem; }
 .bindbox { background: var(--bg); border: 1px dashed var(--accent); border-radius: 10px; padding: .8rem 1rem; font-size: .92rem; word-break: break-all; margin: .55rem 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+/* 口令弹层 */
+#cmdMask { position: fixed; inset: 0; background: rgba(45,42,36,.35); z-index: 50; display: none; }
+#cmdMask.on { display: flex; align-items: center; justify-content: center; }
+.cmdbox { background: var(--card); border-radius: 16px; padding: 1.4rem 1.6rem; width: min(34rem, 92vw); max-height: 86vh; overflow-y: auto; box-shadow: 0 18px 50px rgba(45,42,36,.25); }
+.cmdbox h2 { margin: 0 0 .2rem; font-size: 1.05rem; }
+.cmdbox .sub { color: var(--muted); font-size: .84rem; margin-bottom: 1rem; }
+.cmditem { margin-bottom: 1.1rem; }
+.cmditem h3 { margin: 0 0 .35rem; font-size: .92rem; }
+.cmdtext { background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: .7rem .9rem; font-size: .88rem; line-height: 1.55; word-break: break-all; }
+.cmditem .ops { margin-top: .45rem; display: flex; gap: .6rem; align-items: center; }
 #flash { position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%); background: var(--ink); color: #fff; padding: .55rem 1.1rem; border-radius: 10px; font-size: .88rem; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; z-index: 99; }
 #flash.show { opacity: .96; }
 
@@ -273,6 +283,7 @@ details.alt input { margin-top: .6rem; }
         <div class="frow"><span class="lab">邮箱</span><span class="val" id="accEmail">—</span></div>
         <div class="frow"><span class="lab">文章署名</span><span class="val"><input type="text" id="accAuthor"> <button onclick="saveAuthor()">保存</button> <span class="hint">新文章的默认作者名，可随时改</span></span></div>
         <div class="frow"><span class="lab">作者主页</span><span class="val"><a id="accHome" target="_blank"></a> <span class="hint">发给 AI 可被订阅</span></span></div>
+        <div class="frow"><span class="lab">订阅口令</span><span class="val"><button onclick="showAuthorCmd()">查看 / 复制</button> <span class="hint">贴到任何地方，读者粘给 AI 即可订阅你</span></span></div>
         <div class="frow"><span class="lab">Agent 接入 token</span><span class="val hint">出于安全不再显示。换机器 / 换 agent 时：退出后用邮箱重新登录，会签发新 token（旧 token 仍有效）。</span></div>
       </div>
     </section>
@@ -299,10 +310,35 @@ details.alt input { margin-top: .6rem; }
   </main>
 </div>
 
+<!-- 分发口令弹层 -->
+<div id="cmdMask" onclick="if(event.target===this)closeCmd()">
+  <div class="cmdbox">
+    <h2>📣 分发口令</h2>
+    <div class="sub" id="cmdSub">把口令贴进文章末尾/评论区/社群，读者复制粘给自己的 AI 即生效。</div>
+    <div class="cmditem">
+      <h3>📖 阅读口令 <span class="hint">读这一篇</span></h3>
+      <div class="cmdtext" id="cmdRead"></div>
+      <div class="ops"><button class="primary" onclick="copyCmd('cmdRead', this)">复制</button><a id="cmdReadQr" target="_blank">二维码版</a></div>
+    </div>
+    <div class="cmditem">
+      <h3>📮 订阅口令 <span class="hint">持续关注你——这是给读者的「关注」按钮</span></h3>
+      <div class="cmdtext" id="cmdSub2"></div>
+      <div class="ops"><button class="primary" onclick="copyCmd('cmdSub2', this)">复制</button><a id="cmdSubQr" target="_blank">二维码版</a></div>
+    </div>
+    <div class="cmditem">
+      <h3>🔗 口令页 <span class="hint">一个链接装下以上全部，可直接分享</span></h3>
+      <div class="cmdtext" id="cmdPage"></div>
+      <div class="ops"><button class="primary" onclick="copyCmd('cmdPage', this)">复制链接</button></div>
+    </div>
+    <p style="text-align:right;margin:0"><button onclick="closeCmd()">关闭</button></p>
+  </div>
+</div>
+
 <div id="flash"></div>
 
 <script>
 const $ = (id) => document.getElementById(id)
+let ME = {}
 const tokenOf = () => localStorage.getItem('a4a_token') || ''
 let ARTICLES = []
 
@@ -429,6 +465,7 @@ async function refresh() {
   renderRows()
 
   api('GET', '/v1/me').then((me) => {
+    ME = me
     const who = me.username || me.authorName || 'token 账号'
     $('topName').textContent = who
     $('avatarTxt').textContent = who.slice(0, 1).toUpperCase()
@@ -473,6 +510,7 @@ function articleRow(a, isDemo) {
     ? '<button disabled>查看</button> <button disabled>复制</button> <button disabled>设置</button>'
     : '<button onclick="window.open(\\'/' + a.id + '\\', \\'_blank\\')">查看</button> ' +
       '<button onclick="copyUrl(\\'' + a.id + '\\')">复制</button> ' +
+      '<button onclick="showCmd(\\'' + a.id + '\\', \\'' + esc(a.title).replace(/'/g, '') + '\\')">口令</button> ' +
       '<details class="dd"><summary>设置 ▾</summary><div class="ddmenu">' +
         '<button onclick="setPrice(\\'' + a.id + '\\',' + (a.price || 0) + ')">定价</button>' +
         '<button onclick="renew(\\'' + a.id + '\\')">续期 7 天</button>' +
@@ -556,6 +594,43 @@ function flash(text) {
   el.className = 'show'
   clearTimeout(flashTimer)
   flashTimer = setTimeout(() => { el.className = '' }, 3200)
+}
+
+// ---------- 分发口令 ----------
+function pubName() { return ME.username || ME.authorName || '' }
+
+function showCmd(id, title) {
+  document.querySelectorAll('.cmditem').forEach((el) => { el.style.display = '' })
+  const o = location.origin
+  $('cmdRead').textContent = '请帮我读这篇文章《' + title + '》并总结要点：' + o + '/' + id + ' （这是 AI 可读链接，直接请求即得全文）'
+  $('cmdReadQr').href = o + '/c/' + id + '/read.svg'
+  const n = pubName()
+  if (n) {
+    $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」的更新：读取 ' + o + '/u/' + n + ' 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。'
+    $('cmdSubQr').href = o + '/c/' + id + '/subscribe.svg'
+  }
+  $('cmdPage').textContent = o + '/c/' + id
+  $('cmdMask').classList.add('on')
+}
+
+function closeCmd() { $('cmdMask').classList.remove('on') }
+
+// 账号级：只展示订阅口令（阅读/口令页区块隐藏）
+function showAuthorCmd() {
+  const n = pubName()
+  if (!n) { flash('还没有用户名'); return }
+  const o = location.origin
+  document.querySelectorAll('.cmditem')[0].style.display = 'none'
+  document.querySelectorAll('.cmditem')[2].style.display = 'none'
+  $('cmdSub2').textContent = '请帮我订阅作者「' + n + '」的更新：读取 ' + o + '/u/' + n + ' 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。'
+  $('cmdSubQr').href = o + '/u/' + encodeURIComponent(n) + '/subscribe.svg'
+  $('cmdMask').classList.add('on')
+}
+
+async function copyCmd(elId, btn) {
+  await navigator.clipboard.writeText($(elId).textContent)
+  btn.textContent = '✅ 已复制'
+  setTimeout(() => { btn.textContent = elId === 'cmdPage' ? '复制链接' : '复制' }, 1800)
 }
 
 // 点击别处收起「设置」下拉

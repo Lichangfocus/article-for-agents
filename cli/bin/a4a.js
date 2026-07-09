@@ -141,6 +141,12 @@ function printPublished(result, values) {
   console.log(`\n  ${result.url}`)
   console.log(`\n把这个链接发给任何 AI（Claude/豆包/ChatGPT…），它都能直接读取全文。`)
   if (result.expiresAt) console.log(`有效期至 ${result.expiresAt.slice(0, 10)}（可在 ${result.admin_url || '后台'} 登录续期/管理）`)
+  if (result.commands) {
+    console.log('\n📣 分发口令（贴进原文末尾/评论区/社群，读者粘给自己的 AI 即生效）：')
+    console.log(`\n  📖 阅读口令：\n  ${result.commands.read}`)
+    if (result.commands.subscribe) console.log(`\n  📮 订阅口令：\n  ${result.commands.subscribe}`)
+    if (result.commands.command_page) console.log(`\n  🔗 口令页（含二维码版）：${result.commands.command_page}`)
+  }
   if (!values['no-qr']) {
     console.log('')
     qrcode.generate(result.url, { small: true })

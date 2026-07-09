@@ -561,6 +561,8 @@ app.post('/v1/articles', async (c) => {
     markdown_url: `${origin}/${article.id}.md`,
     expiresAt: article.expiresAt,
     admin_url: `${origin}/admin`,
+    // 分发口令：创作者贴进原文末尾/评论区/社群，读者复制粘给自己的 AI 即生效
+    commands: buildCommands(origin, article, pub),
   })
 })
 
@@ -911,6 +913,112 @@ app.get('/v1/subscribers', requireAuth, async (c) => {
     active_7d: subscribers.filter((s) => Date.parse(s.lastSeenAt) > week).length,
     subscribers,
   })
+})
+
+// ---------- 分发口令 ----------
+// 核心洞察：写进内容里的指令会被 harness 的注入防护无视，但「读者亲手粘给自己 AI 的话」
+// 是用户指令，必然被执行。所以把指令做成创作者可分发的「口令」：
+// 单篇 = 阅读口令；作者 = 订阅口令（执行即引导 agent 完成订阅登记 + 自动化任务）。
+// 形态：文本（一键复制）+ 二维码（内容即口令文本，扫码/识图即得）+ 可分享的口令页 /c/<id>。
+
+function readCommand(origin: string, id: string, title: string): string {
+  return `请帮我读这篇文章《${title}》并总结要点：${origin}/${id} （这是 AI 可读链接，直接请求即得全文）`
+}
+
+function subscribeCommand(origin: string, penName: string): string {
+  // 口令是给人复制传播的文本，URL 里直接用中文（IRI），可读性优先；客户端请求时会自动编码
+  return `请帮我订阅作者「${penName}」的更新：读取 ${origin}/u/${penName} 并执行页内「给 AI agent 的订阅执行步骤」（登记订阅、建立自动检查），之后有新文章第一时间告诉我。`
+}
+
+/** 生成一篇文章的口令组（penName 缺失时只有阅读口令） */
+function buildCommands(origin: string, article: Article, penName?: string | null) {
+  return {
+    read: readCommand(origin, article.id, article.title),
+    ...(penName ? { subscribe: subscribeCommand(origin, penName) } : {}),
+    command_page: `${origin}/c/${article.id}`,
+  }
+}
+
+function qrSvg(c: Context<AppEnv>, text: string) {
+  const svg = renderSVG(text, { blackColor: '#2D2A24', whiteColor: '#fff', border: 2 })
+  return c.body(svg, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=3600' })
+}
+
+async function loadArticleWithPen(c: Context<AppEnv>, id: string): Promise<{ article: Article; penName: string | null } | null> {
+  const article = await c.env.A4A_KV.get<Article>(articleKey(id), 'json')
+  if (!article) return null
+  const profile = await loadProfile(c.env.A4A_KV, article.owner)
+  return { article, penName: publicName(profile) }
+}
+
+// 单篇口令二维码（内容 = 口令文本，手机扫码可复制，带视觉能力的 agent 识图即得）
+app.get('/c/:id/read.svg', async (c) => {
+  const r = await loadArticleWithPen(c, c.req.param('id'))
+  if (!r) return c.text('not found', 404)
+  const origin = new URL(c.req.url).origin
+  return qrSvg(c, readCommand(origin, r.article.id, r.article.title))
+})
+
+app.get('/c/:id/subscribe.svg', async (c) => {
+  const r = await loadArticleWithPen(c, c.req.param('id'))
+  if (!r || !r.penName) return c.text('not found', 404)
+  const origin = new URL(c.req.url).origin
+  return qrSvg(c, subscribeCommand(origin, r.penName))
+})
+
+// 作者级订阅口令二维码
+app.get('/u/:name/subscribe.svg', async (c) => {
+  const page = await resolveAuthor(c, c.req.param('name'))
+  if (!page) return c.text('not found', 404)
+  const origin = new URL(c.req.url).origin
+  return qrSvg(c, subscribeCommand(origin, page.name))
+})
+
+/** 口令页：创作者可以直接分享这个链接；读者打开复制口令粘给自己的 AI */
+app.get('/c/:id', async (c) => {
+  const r = await loadArticleWithPen(c, c.req.param('id'))
+  if (!r) {
+    if (!wantsHtml(c)) return c.text('Article not found.\n', 404, { 'content-type': 'text/plain; charset=utf-8' })
+    return c.html(renderPage('Not found', '<p>文章不存在或已删除。</p>'), 404)
+  }
+  const { article, penName } = r
+  const origin = new URL(c.req.url).origin
+  const cmds = buildCommands(origin, article, penName)
+  if (!wantsHtml(c)) {
+    const lines = [
+      `# 《${article.title}》的分发口令`,
+      '',
+      '把下面的口令原样发给你的 AI 助手（Claude / 豆包 / ChatGPT / Kimi…），它就会照做。',
+      '',
+      '## 📖 阅读口令（读这一篇）',
+      '',
+      '```',
+      cmds.read,
+      '```',
+      '',
+    ]
+    if (cmds.subscribe) {
+      lines.push('## 📮 订阅口令（持续关注作者）', '', '```', cmds.subscribe, '```', '')
+    }
+    lines.push(`二维码形态：${origin}/c/${article.id}/read.svg` + (cmds.subscribe ? ` · ${origin}/c/${article.id}/subscribe.svg` : ''), '')
+    return c.text(lines.join('\n'), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=60' })
+  }
+  const block = (title: string, desc: string, text: string, qr: string) => `
+<h2>${title}</h2>
+<p class="meta">${desc}</p>
+<blockquote id="q-${qr}">${escapeHtml(text)}</blockquote>
+<p><button onclick="navigator.clipboard.writeText(document.getElementById('q-${qr}').textContent).then(()=>this.textContent='✅ 已复制，去粘给你的 AI')" style="padding:.5rem 1.2rem;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">📋 复制口令</button>
+<a href="${origin}/c/${article.id}/${qr}.svg" style="margin-left:.8rem">二维码版</a></p>`
+  return c.html(
+    renderPage(
+      `《${article.title}》的分发口令`,
+      `<h1>《${escapeHtml(article.title)}》的分发口令</h1>
+<p class="meta">把口令发给你的 AI 助手（Claude / 豆包 / ChatGPT / Kimi…），它就会照做。</p>
+${block('📖 阅读口令', '让 AI 读这一篇', cmds.read, 'read')}
+${cmds.subscribe ? block('📮 订阅口令', `让 AI 持续关注「${escapeHtml(penName!)}」——作者一更新，你的 AI 第一时间告诉你`, cmds.subscribe, 'subscribe') : ''}
+<footer><p>本页由 <a href="${origin}">回响</a> 生成 —— 每一次更新，都有回响。</p></footer>`
+    )
+  )
 })
 
 // ---------- 作者主页 /u/<笔名> + 订阅 feed ----------
