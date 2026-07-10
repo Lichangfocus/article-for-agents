@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
   // 正式域名（zone: echohx.com）；workers.dev 旧地址继续可用
+  // 保留 workers.dev 旧地址（已分发的链接/海报/订阅 feed 依赖它）
+  "workers_dev": true,
   "routes": [
     { "pattern": "echohx.com", "custom_domain": true },
     { "pattern": "www.echohx.com", "custom_domain": true }

@@ -1339,7 +1339,7 @@ app.get('/u/:name/feed.json', async (c) => {
   return c.json(
     {
       version: 'https://jsonfeed.org/version/1.1',
-      title: `${page.name} · article-for-agents`,
+      title: `${page.name} · 回响`,
       home_page_url: urls.page,
       feed_url: urls.feed,
       description: '把 items[].url 直接 GET 即得文章全文（Markdown）。轮询时带 ?since=<ISO8601> 增量获取。',
