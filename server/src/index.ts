@@ -1414,7 +1414,7 @@ const LANDING_MD = `# 回响（huixiang）
 - 作者主页: GET /u/<笔名> — 列出该作者全部文章（AI 可读，含订阅指引）；更新源 /u/<笔名>/feed.json
 - 发布文章（推荐）: 对你的 AI agent 说一句话，它会自己装好发布 skill:
 
-  「帮我安装这个 skill: https://article-for-agents.lichangin.workers.dev/install」
+  「帮我安装这个 skill: https://echohx.com/install」
 
   之后把文章丢给 AI 说「把这篇文章转成 AI 可读链接」即可
 - 手动发布: 回响 CLI (npm: huixiang-cli，命令 a4a) — https://github.com/Lichangfocus/huixiang

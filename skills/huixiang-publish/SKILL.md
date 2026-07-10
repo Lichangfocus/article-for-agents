@@ -10,7 +10,7 @@ description: 「回响」发布 skill：把文章原文或公众号/小红书链
 YAML front matter），**永久有效**，可在网页后台管理。图片会自动搬到回响的图床
 （平台图床对 AI 防盗链），作者还有一个主页 `/u/<用户名>`，AI 可通过它订阅更新。
 
-默认服务端：https://article-for-agents.lichangin.workers.dev （用户指定自部署实例时，
+默认服务端：https://echohx.com （用户指定自部署实例时，
 后续命令都加 `--endpoint <url>`，下文的 `<endpoint>` 同理替换）。
 
 ## 步骤

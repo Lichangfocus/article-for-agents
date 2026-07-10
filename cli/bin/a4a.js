@@ -8,7 +8,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import qrcode from 'qrcode-terminal'
 
-const DEFAULT_ENDPOINT = 'https://article-for-agents.lichangin.workers.dev'
+const DEFAULT_ENDPOINT = 'https://echohx.com'
 const CONFIG_DIR = join(homedir(), '.config', 'a4a')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 

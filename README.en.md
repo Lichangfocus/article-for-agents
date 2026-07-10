@@ -16,7 +16,7 @@ Convert content to AI-readable form · Free links agents read in one `fetch` · 
 
 [中文](README.md) | **English**
 
-🌐 **Hosted instance**: [article-for-agents.lichangin.workers.dev](https://article-for-agents.lichangin.workers.dev) · works out of the box, or [self-host](#%EF%B8%8F-self-hosting)
+🌐 **Hosted instance**: [echohx.com](https://echohx.com) · works out of the box, or [self-host](#%EF%B8%8F-self-hosting)
 
 </div>
 
@@ -57,12 +57,12 @@ Every article points to your author page `/u/<pen-name>`; the embedded guide tea
 
 **Step 1 · Install the skill (tell your AI once)**
 
-> Install this skill for me: https://article-for-agents.lichangin.workers.dev/install
+> Install this skill for me: https://echohx.com/install
 
 The agent reads the instructions and installs itself. Or do it manually:
 
 ```bash
-mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
+mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://echohx.com/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
 ```
 
 **Step 2 · Hand your AI an article (or a link)**
@@ -79,7 +79,7 @@ Or just paste a WeChat / Xiaohongshu link for one-click import:
 
 The skill walks you through the standard flow:
 
-- Open the [admin](https://article-for-agents.lichangin.workers.dev/admin) → register (**email + username + password**, no email verification yet)
+- Open the [admin](https://echohx.com/admin) → register (**email + username + password**, no email verification yet)
 - The username is globally unique and doubles as your author page `/u/<username>`
 - The success page gives you a **binding instruction** to paste to your AI (the token is an agent credential — recover it anytime by logging in with email)
 
@@ -110,7 +110,7 @@ Publish with `--price 3.00` (or set a price in the admin panel). The protocol, f
 
 ## 🖥 Admin console
 
-Open [/admin](https://article-for-agents.lichangin.workers.dev/admin) and log in with email (legacy accounts can still use token login). A SaaS-style console with four views: **Links** (search, view/copy, renew, price, delete — demo rows when empty), **Subscribers** (totals, 7-day actives, per-agent mode & last-active), **Account** (username, email, byline, token notes), **Advanced** (subscription guidance settings). Tokens stay in your browser (server stores hashes); passwords are salted PBKDF2.
+Open [/admin](https://echohx.com/admin) and log in with email (legacy accounts can still use token login). A SaaS-style console with four views: **Links** (search, view/copy, renew, price, delete — demo rows when empty), **Subscribers** (totals, 7-day actives, per-agent mode & last-active), **Account** (username, email, byline, token notes), **Advanced** (subscription guidance settings). Tokens stay in your browser (server stores hashes); passwords are salted PBKDF2.
 
 ## 🤖 How AIs read it
 

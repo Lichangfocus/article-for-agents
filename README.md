@@ -16,7 +16,7 @@
 
 **中文** | [English](README.en.md)
 
-🌐 **官方实例**: [article-for-agents.lichangin.workers.dev](https://article-for-agents.lichangin.workers.dev) · 开箱即用，也可[自部署](#-自部署)
+🌐 **官方实例**: [echohx.com](https://echohx.com) · 开箱即用，也可[自部署](#-自部署)
 
 </div>
 
@@ -57,12 +57,12 @@
 
 **第 1 步 · 安装 skill（对你的 AI 说一句话，只需一次）**
 
-> 帮我安装这个 skill：https://article-for-agents.lichangin.workers.dev/install
+> 帮我安装这个 skill：https://echohx.com/install
 
 agent 会自己读取安装指令并完成安装。也可以自己用一行命令装：
 
 ```bash
-mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://article-for-agents.lichangin.workers.dev/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
+mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://echohx.com/skill.md -o ~/.claude/skills/huixiang-publish/SKILL.md
 ```
 
 **第 2 步 · 把文章（或链接）丢给你的 AI**
@@ -81,7 +81,7 @@ mkdir -p ~/.claude/skills/huixiang-publish && curl -fsSL https://article-for-age
 
 skill 会引导你完成标准注册流程：
 
-- 打开 [后台](https://article-for-agents.lichangin.workers.dev/admin) → 注册（**邮箱 + 用户名 + 密码**，前期免邮箱验证）
+- 打开 [后台](https://echohx.com/admin) → 注册（**邮箱 + 用户名 + 密码**，前期免邮箱验证）
 - 用户名全局唯一，就是你的作者主页地址 `/u/<用户名>`
 - 注册成功页把「**绑定指令**」复制给你的 AI → 绑定完成（token 是 agent 接入凭证，忘了随时邮箱登录找回）
 
@@ -117,7 +117,7 @@ skill 会引导你完成标准注册流程：
 
 ## 🖥 后台管理
 
-打开 [/admin](https://article-for-agents.lichangin.workers.dev/admin) 邮箱登录（老 token 账号可用 token 登录入口），SaaS 式管理台，四个视图：
+打开 [/admin](https://echohx.com/admin) 邮箱登录（老 token 账号可用 token 登录入口），SaaS 式管理台，四个视图：
 
 - **内容链接**：搜索、查看/复制、定价、删除（永久有效）；空态有示例数据
 - **订阅者**：总数与近 7 天活跃、每个订阅 agent 的名字 / push·poll 模式 / 最近活跃
