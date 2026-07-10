@@ -1426,7 +1426,7 @@ Markdown with YAML front matter at GET /<id> — no browser automation needed.
 
 app.get('/', (c) => {
   if (!wantsHtml(c)) return c.text(LANDING_MD, 200, { 'content-type': 'text/markdown; charset=utf-8' })
-  return c.html(renderPage('article-for-agents', marked.parse(LANDING_MD) as string))
+  return c.html(renderPage('回响 Echo · Agent 时代的 RSS', marked.parse(LANDING_MD) as string))
 })
 
 // skill 由服务自身分发：一行命令安装，无需 clone 仓库
