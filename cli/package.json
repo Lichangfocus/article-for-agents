@@ -1,6 +1,6 @@
 {
   "name": "huixiang-cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "回响 huixiang CLI: publish articles as AI-readable URLs (commands: a4a / huixiang). 每一次更新，都有回响。",
   "license": "MIT",
   "repository": {

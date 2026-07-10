@@ -234,7 +234,13 @@ Point users at your instance with `a4a login <token> --endpoint https://your.dom
 
 > Every feature update adds a new version number (0.0.x) here with release notes. Full feature list: [FEATURES.md](FEATURES.md) (Chinese).
 
-### v0.0.13 · 2026-07-09 — read echoes: authors finally see how many times AI has read them (current)
+### v0.0.14 · 2026-07-10 — official domain echohx.com is live (current)
+
+- Primary domain switched to **echohx.com** (registered at Aliyun, DNS on Cloudflare) — far more reliable from China than workers.dev
+- Worker bound to apex + www custom domains; **the old workers.dev URL keeps working**, so every distributed link/poster/feed stays intact
+- CLI default endpoint, bilingual README, skill install commands, phrase/poster generation all moved to the new domain (huixiang-cli 0.5.1)
+
+### v0.0.13 · 2026-07-09 — read echoes: authors finally see how many times AI has read them
 
 - Every agent-mode read (200) bumps a per-article counter — "every update resounds" now has a visible number
 - New **🤖 reads** column in the admin links view; article pages show "read by AI N times" (social proof)

@@ -246,7 +246,13 @@ npx wrangler deploy
 
 > 每次功能更新都会在这里新增一个版本号（0.0.x）并附更新介绍。完整功能清单见 [FEATURES.md](FEATURES.md)。
 
-### v0.0.13 · 2026-07-09 —— 阅读回响：作者第一次看见自己被 AI 读了多少次（当前）
+### v0.0.14 · 2026-07-10 —— 正式域名 echohx.com 上线（当前）
+
+- 主域名切换为 **echohx.com**（阿里云注册 · Cloudflare 托管解析），国内访问显著优于 workers.dev
+- Worker 绑定 apex + www 自定义域名；**旧地址 article-for-agents.lichangin.workers.dev 继续可用**，已分发的链接/海报/订阅 feed 全部无损
+- CLI 默认服务端、README 双语、skill 安装命令、口令与海报生成全部切换新域名（huixiang-cli 0.5.1）
+
+### v0.0.13 · 2026-07-09 —— 阅读回响：作者第一次看见自己被 AI 读了多少次
 
 - 每次被 AI 读取（agent 形态 200），文章计数 +1——「每一次更新，都有回响」终于有了看得见的数字
 - 后台「内容链接」新增 **🤖 被读** 列；文章网页 meta 显示「🤖 被 AI 读过 N 次」（社交证明）
